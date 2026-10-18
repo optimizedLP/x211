@@ -116,10 +116,13 @@ are history. That keeps each bucket tile equal to the rows listed beneath it.
 
 ### Starting state
 
-The fleet starts **empty**. `src/lib/data/seed.ts` supplies only reference data — nine categories,
-thirteen rooms and six staff placeholder names — so the add-device form and the importer are usable
-before anything is entered. Edit those lists to match the school; they are ordinary constants, not
-records.
+The fleet starts **empty**, and so do the room and holder lists. `src/lib/data/seed.ts` supplies only
+the nine categories, which a device needs in order to exist.
+
+Rooms and people are **learned from imports**: the first sheet that mentions “Room 214” or “M. Rivera”
+creates that room and that holder in the same write, and the dry run says how many it will add
+(“Also adds 2 new rooms and 3 new holders”). Matching ignores case, punctuation and a leading “Room”,
+so “214”, “Room 214” and “room 214” are one room. Re-importing a known name adds nothing.
 
 Devices enter either through **+ New device** or **Import**. Re-importing a sheet is safe: rows whose
 asset tag already exists are refused in the dry run and skipped, and nothing is ever overwritten.
@@ -138,13 +141,14 @@ src/
     csv.ts          dependency-free RFC 4180 reader + separator detection
     importPlan.ts   column guessing, row validation and the dry-run plan
     deviceForm.ts   shared form values, validation and NewDeviceInput mapping
+    reference.ts    room/staff name keys, shared by the importer and the adapter
     clock.ts        one shared "now", so no two rows disagree about today
     useAsync.ts     small loading/error hook for adapter calls
     useInventoryVersion.ts  subscribes screens to writes so they refetch
     data/
       types.ts      the InventoryAdapter seam
       mockAdapter.ts  localStorage implementation (swap this out later)
-      seed.ts       blank fleet + starter categories, rooms and staff
+      seed.ts       blank fleet + categories (rooms and staff are learned)
   components/       app shell, badges, the shared device field set, placeholder pages
   routes/           Devices, DeviceDetail, NewDevice, Import, Removed, WarrantyCliff + planned stubs
 ```

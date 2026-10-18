@@ -1,6 +1,7 @@
 import type { ParsedTable } from './csv'
 import type { NewDeviceInput } from './data/types'
 import { parseDateCell } from './dates'
+import { nameKey, roomKey } from './reference'
 import type { Category, Device, DeviceStatus, Location, Staff } from './types'
 import { DEVICE_STATUSES } from './types'
 import { addMonths } from './warranty'
@@ -245,6 +246,13 @@ export interface ImportPlan {
   rowsWithWarnings: number
   /** Header-level reasons the import cannot run yet. */
   blockers: string[]
+  /**
+   * Rooms and holders in the sheet that the app has not seen yet. They are not
+   * problems — the import creates them — but the dry run should say so before
+   * anything is written.
+   */
+  newLocations: string[]
+  newStaff: string[]
 }
 
 export interface PlanArgs {
@@ -290,19 +298,17 @@ export function buildImportPlan({
     return mapping[field.key] === UNMAPPED
   }).map((field) => `Map a column to ${field.label.toLowerCase()}.`)
 
+  // Indexed with the same keys the adapter uses when it creates a room, so the
+  // dry run and the write agree on what counts as “already known”.
   const locationByKey = new Map<string, Location>()
   for (const location of locations) {
-    locationByKey.set(headerKey(location.name), location)
-    if (location.roomNumber) {
-      locationByKey.set(headerKey(location.roomNumber), location)
-      locationByKey.set(headerKey(`${location.name} ${location.roomNumber}`), location)
-      locationByKey.set(headerKey(`${location.roomNumber} ${location.name}`), location)
-    }
+    locationByKey.set(roomKey(location.name), location)
+    if (location.roomNumber) locationByKey.set(roomKey(location.roomNumber), location)
   }
 
   const staffByKey = new Map<string, Staff>()
   for (const person of staff) {
-    staffByKey.set(headerKey(person.name), person)
+    staffByKey.set(nameKey(person.name), person)
   }
 
   const tagsOnRecord = new Set(
@@ -318,6 +324,10 @@ export function buildImportPlan({
 
   const seenTags = new Map<string, number>()
   const seenSerials = new Map<string, number>()
+
+  // Keyed by normalised text so “Room 214” and “room 214” count once.
+  const newLocations = new Map<string, string>()
+  const newStaff = new Map<string, string>()
 
   const rows: ImportPlanRow[] = []
   const headerOffset = table.hasHeaderRow ? 2 : 1
@@ -433,16 +443,17 @@ export function buildImportPlan({
     }
 
     // --- location / holder
-    let locationId: string | null = null
-    if (locationText) {
-      const match = locationByKey.get(headerKey(locationText))
-      if (match) locationId = match.id
-      else warnings.push(`Location “${locationText}” is not in the location list — left blank.`)
+    // A room or person the app has not seen is not a problem to warn about:
+    // the import adds them, which is how the lists fill themselves from the
+    // school's own sheet. The plan just says how many are new.
+    const locationMatch = locationText ? locationByKey.get(roomKey(locationText)) : undefined
+    if (locationText && !locationMatch) {
+      newLocations.set(roomKey(locationText), locationText.trim())
     }
 
-    const holder = holderText ? staffByKey.get(headerKey(holderText)) : undefined
+    const holder = holderText ? staffByKey.get(nameKey(holderText)) : undefined
     if (holderText && !holder) {
-      warnings.push(`Holder “${holderText}” is not on the staff list — saved as free text.`)
+      newStaff.set(nameKey(holderText), holderText.trim())
     }
 
     rows.push({
@@ -462,7 +473,8 @@ export function buildImportPlan({
             model,
             assetTag: assetTag || null,
             serial: serial || null,
-            locationId,
+            locationId: locationMatch?.id ?? null,
+            locationName: locationText || null,
             // Store the canonical staff name when we recognise it, the raw text otherwise.
             assignedTo: holder?.name ?? (holderText || null),
             status,
@@ -487,5 +499,7 @@ export function buildImportPlan({
     rowsWithErrors: rows.filter((row) => row.errors.length > 0).length,
     rowsWithWarnings: rows.filter((row) => row.warnings.length > 0).length,
     blockers,
+    newLocations: [...newLocations.values()],
+    newStaff: [...newStaff.values()],
   }
 }

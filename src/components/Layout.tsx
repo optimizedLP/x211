@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 
-import { inventory, isDemoData } from '../lib/data'
+import { inventory } from '../lib/data'
 import { useInventoryVersion } from '../lib/useInventoryVersion'
 import { WARRANTY_BUCKET_LABELS } from '../lib/warranty'
 import { useAsync } from '../lib/useAsync'
@@ -49,10 +49,6 @@ function FleetSummary() {
         <span className="text-muted">Expiring ≤ 90 days</span>
         <span className="font-semibold text-warn">{soon}</span>
       </div>
-      <div className="flex items-center justify-between">
-        <span className="text-muted">No warranty date</span>
-        <span className="font-semibold text-muted">{summary.data.unknown}</span>
-      </div>
     </div>
   )
 }
@@ -68,11 +64,6 @@ function DemoNotice() {
 
   return (
     <div className="space-y-2">
-      <p className="text-[11px] leading-relaxed text-muted">
-        {isDemoData
-          ? 'Saved in this browser only — no backend yet.'
-          : 'Connected to a live backend.'}
-      </p>
       <button
         type="button"
         onClick={reset}

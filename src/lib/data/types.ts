@@ -13,6 +13,12 @@ export interface NewDeviceInput {
   assetTag?: string | null
   serial?: string | null
   locationId?: string | null
+  /**
+   * Raw room text from a spreadsheet. When no `locationId` matches, the adapter
+   * finds or creates the room from this, so the location list fills itself from
+   * real data instead of needing a setup screen.
+   */
+  locationName?: string | null
   /** Staff name. Imported sheets routinely name people who are not on the list yet. */
   assignedTo?: string | null
   /** Defaults to `In Service` when omitted. */
@@ -32,6 +38,10 @@ export interface ImportOutcome {
    * overwritten. The caller knows which source row each tag came from.
    */
   duplicates: string[]
+  /** Rooms the import had to add, so the caller can say what it learned. */
+  newLocations: string[]
+  /** Holders the import had to add, same reason. */
+  newStaff: string[]
 }
 
 /**
@@ -89,11 +99,14 @@ export interface InventoryAdapter {
    */
   createDevice(input: NewDeviceInput): Promise<Device>
   /**
-   * Bulk create for the spreadsheet import. Callers resolve category/location
-   * ids first; this only guards asset-tag uniqueness, which is the one check
-   * that can still race with another tab. Duplicate tags are reported and
-   * skipped instead of throwing, because one bad row must not lose 300 good
-   * ones — all-or-nothing is the wrong failure mode for a human sheet.
+   * Bulk create for the spreadsheet import. Callers resolve category ids first.
+   * Rooms and holders are *learned* here: a room name or person the app has not
+   * seen before is added to the reference lists in the same write, so the
+   * dropdowns fill themselves from real data. This method also guards asset-tag
+   * uniqueness, which is the one check that can still race with another tab.
+   * Duplicate tags are reported and skipped instead of throwing, because one bad
+   * row must not lose 300 good ones — all-or-nothing is the wrong failure mode
+   * for a human sheet.
    */
   importDevices(inputs: readonly NewDeviceInput[]): Promise<ImportOutcome>
 

@@ -177,7 +177,7 @@ export function ImportPage() {
   // --- result -----------------------------------------------------------------
 
   if (result) {
-    const { created, duplicates } = result.outcome
+    const { created, duplicates, newLocations, newStaff } = result.outcome
     return (
       <div className="max-w-2xl space-y-5">
         <div>
@@ -195,6 +195,24 @@ export function ImportPage() {
           <p className="mt-1 text-xs text-muted">
             They are in the fleet now — the sidebar counts and the Warranty page already include them.
           </p>
+          {(newLocations.length > 0 || newStaff.length > 0) && (
+            <p className="mt-2 text-xs text-muted">
+              {newLocations.length > 0 && (
+                <>
+                  Added <strong className="text-ink">{newLocations.length}</strong>{' '}
+                  {newLocations.length === 1 ? 'room' : 'rooms'} to the location list
+                </>
+              )}
+              {newLocations.length > 0 && newStaff.length > 0 && ' and '}
+              {newStaff.length > 0 && (
+                <>
+                  <strong className="text-ink">{newStaff.length}</strong>{' '}
+                  {newStaff.length === 1 ? 'holder' : 'holders'} to the staff list
+                </>
+              )}
+              .
+            </p>
+          )}
         </div>
 
         {duplicates.length > 0 && (
@@ -459,6 +477,25 @@ export function ImportPage() {
             >
               {committing ? 'Importing…' : `Import ${plan.ready} ${plan.ready === 1 ? 'device' : 'devices'}`}
             </button>
+            {(plan.newLocations.length > 0 || plan.newStaff.length > 0) && (
+              <p className="w-full border-t border-line/60 pt-2 text-[11px] leading-relaxed text-muted">
+                Also adds{' '}
+                {plan.newLocations.length > 0 && (
+                  <>
+                    <strong className="text-ink">{plan.newLocations.length}</strong>{' '}
+                    {plan.newLocations.length === 1 ? 'new room' : 'new rooms'}
+                  </>
+                )}
+                {plan.newLocations.length > 0 && plan.newStaff.length > 0 && ' and '}
+                {plan.newStaff.length > 0 && (
+                  <>
+                    <strong className="text-ink">{plan.newStaff.length}</strong>{' '}
+                    {plan.newStaff.length === 1 ? 'new holder' : 'new holders'}
+                  </>
+                )}{' '}
+                to your lists, so the dropdowns match the sheet.
+              </p>
+            )}
           </div>
 
           {commitError && (

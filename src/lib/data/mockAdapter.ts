@@ -3,6 +3,7 @@ import type { BulkItem, Category, Device, InventorySnapshot, Location, Staff } f
 import { isRetired } from '../types'
 import type { WarrantyBucket } from '../warranty'
 import { WARRANTY_BUCKETS, warrantyBucket } from '../warranty'
+import { nameKey, roomKey } from '../reference'
 import { createSeedSnapshot } from './seed'
 import type { DeviceQuery, ImportOutcome, InventoryAdapter, NewDeviceInput } from './types'
 
@@ -16,9 +17,13 @@ import type { DeviceQuery, ImportOutcome, InventoryAdapter, NewDeviceInput } fro
  * v2: the demo fleet was removed, so anything still holding the old seeded
  * snapshot starts blank instead of showing 64 fake devices. Nothing real is
  * lost by the bump — the old key only ever held generated rows.
+ *
+ * v3: the preset room and staff lists were removed too, and they live inside
+ * the snapshot. A v2 snapshot would keep showing the old placeholder rooms and
+ * people, so the key moves once more. v2 only ever held demo/test rows.
  */
 
-const STORAGE_KEY = 'x211:inventory:v2'
+const STORAGE_KEY = 'x211:inventory:v3'
 const LATENCY_MS = 60
 
 function delay(ms: number): Promise<void> {
@@ -104,6 +109,11 @@ function tagKey(tag: string): string {
   return tag.trim().toUpperCase()
 }
 
+function referenceId(prefix: string, key: string): string {
+  const stem = key.slice(0, 24) || Math.random().toString(16).slice(2, 8)
+  return `${prefix}-${stem}`
+}
+
 function newDeviceId(): string {
   const suffix =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -136,6 +146,53 @@ export function createMockAdapter(): InventoryAdapter {
         .filter((tag): tag is string => Boolean(tag))
         .map(tagKey),
     )
+
+  /**
+   * Finds or creates a room from raw sheet text. The list starts empty, so the
+   * first import is what fills it — that is the point: real rooms come from real
+   * data, not from a setup screen nobody fills in.
+   */
+  const ensureLocation = (raw: string): Location => {
+    const name = raw.trim()
+    const key = roomKey(name)
+    const match = snapshot.locations.find(
+      (location) =>
+        roomKey(location.name) === key ||
+        (location.roomNumber !== null && roomKey(location.roomNumber) === key),
+    )
+    if (match) return match
+
+    let id = referenceId('loc', key)
+    if (snapshot.locations.some((location) => location.id === id)) {
+      id = `${id}-${snapshot.locations.length + 1}`
+    }
+    const created: Location = {
+      id,
+      name,
+      // “Room 214” and “214” both yield a room number, so search and the
+      // duplicates check work whichever way the sheet writes it.
+      roomNumber: name.match(/\d+/)?.[0] ?? null,
+      floor: null,
+    }
+    snapshot = { ...snapshot, locations: [...snapshot.locations, created] }
+    return created
+  }
+
+  /** Same for a holder: a name the app has not seen becomes a staff entry. */
+  const ensureStaff = (raw: string): Staff => {
+    const name = raw.trim()
+    const key = nameKey(name)
+    const match = snapshot.staff.find((person) => nameKey(person.name) === key)
+    if (match) return match
+
+    let id = referenceId('stf', key)
+    if (snapshot.staff.some((person) => person.id === id)) {
+      id = `${id}-${snapshot.staff.length + 1}`
+    }
+    const created: Staff = { id, name, role: null }
+    snapshot = { ...snapshot, staff: [...snapshot.staff, created] }
+    return created
+  }
 
   /** Shared by create and import so both build records the same way. */
   const build = (input: NewDeviceInput): Device => {
@@ -299,6 +356,7 @@ export function createMockAdapter(): InventoryAdapter {
       const taken = tagsInUse()
       const created: Device[] = []
       const duplicates: string[] = []
+      const before = { locations: snapshot.locations.length, staff: snapshot.staff.length }
 
       for (const input of inputs) {
         const tag = clean(input.assetTag)
@@ -306,15 +364,29 @@ export function createMockAdapter(): InventoryAdapter {
           duplicates.push(tag)
           continue
         }
+
+        // Learn the room and the holder before building the row, so the
+        // dropdowns on every screen list them as soon as this import lands.
+        const locationName = clean(input.locationName)
+        const locationId =
+          clean(input.locationId) ?? (locationName ? ensureLocation(locationName).id : null)
+        const holderName = clean(input.assignedTo)
+        const holder = holderName ? ensureStaff(holderName) : null
+
         if (tag) taken.add(tagKey(tag))
-        created.push(build(input))
+        created.push(build({ ...input, locationId, assignedTo: holder?.name ?? input.assignedTo ?? null }))
       }
 
       if (created.length > 0) {
         snapshot = { ...snapshot, devices: [...snapshot.devices, ...created] }
         persist(snapshot)
       }
-      return { created, duplicates }
+      return {
+        created,
+        duplicates,
+        newLocations: snapshot.locations.slice(before.locations).map((location) => location.name),
+        newStaff: snapshot.staff.slice(before.staff).map((person) => person.name),
+      }
     },
 
     async listCategories(): Promise<Category[]> {
