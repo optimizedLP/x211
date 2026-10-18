@@ -75,7 +75,7 @@ export const IMPORT_FIELDS: readonly ImportField[] = [
   {
     key: 'model',
     label: 'Model',
-    required: true,
+    required: false,
     hints: ['model', 'modelnumber', 'modelno', 'devicemodel', 'product', 'description', 'itemdescription'],
     placeholder: 'ThinkPad T14 Gen 3',
   },
@@ -367,9 +367,8 @@ export function buildImportPlan({
       errors.push('Category is blank.')
     }
 
-    // --- brand / model
+    // --- brand / model (model is optional: a real share of the fleet has none)
     if (!brand) errors.push('Brand is blank.')
-    if (!model) errors.push('Model is blank.')
 
     // --- status
     let status: DeviceStatus = 'In Service'

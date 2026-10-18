@@ -27,19 +27,16 @@ const TEMPLATE_HEADERS = [
   'Serial',
   'Category',
   'Brand',
-  'Model',
   'Location',
   'Holder',
   'Status',
-  'Purchase date',
-  'Warranty start',
   'Warranty end',
-  'Vendor',
   'Notes',
+  'Model',
 ]
 
 function downloadTemplate(): void {
-  const csv = `${TEMPLATE_HEADERS.join(',')}\nX211-1050,SAMPLE0001,Chromebook,Acer,Chromebook 314 C736,Room 214,,In Service,2024-08-30,2024-08-30,2027-08-30,CDW-G,\n`
+  const csv = `${TEMPLATE_HEADERS.join(',')}\nX211-1050,SAMPLE0001,Chromebook,Acer,Room 214,,In Service,2027-08-30,,Chromebook 314 C736\n`
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
   const link = document.createElement('a')
   link.href = url

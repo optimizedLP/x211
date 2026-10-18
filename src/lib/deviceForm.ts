@@ -88,7 +88,6 @@ export function formValuesToInput(form: DeviceFormValues): NewDeviceInput {
 /** ISO dates compare correctly as strings, so no Date parsing is needed here. */
 export function validateDeviceForm(form: DeviceFormValues): string | null {
   if (!form.brand.trim()) return 'Brand is required.'
-  if (!form.model.trim()) return 'Model is required.'
   if (!form.categoryId) return 'Category is required.'
   if (form.warrantyStart && form.warrantyEnd && form.warrantyEnd < form.warrantyStart) {
     return 'Warranty end cannot be earlier than warranty start.'
