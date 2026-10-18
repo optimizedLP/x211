@@ -75,13 +75,9 @@ export function statusTone(status: DeviceStatus): Tone {
     case 'In Service':
       return 'ok'
     case 'Needs Repair':
-    case 'In Repair':
+    case 'Ticket Open':
       return 'warn'
-    case 'Repair Denied':
-    case 'Out of Warranty':
-      return 'bad'
     case 'Obsolete':
-    case 'Pending Pickup':
       return 'info'
     case 'Disposed':
       return 'muted'

@@ -54,7 +54,7 @@ export function Removed() {
         </Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">Recently removed</h1>
         <p className="mt-1 text-sm text-muted">
-          Removed records are hidden from the fleet, the warranty cliff and every counter, but nothing is
+          Removed records are hidden from the fleet, the Warranty page and every counter, but nothing is
           erased. Restore one to put it back exactly where it was.
         </p>
       </div>

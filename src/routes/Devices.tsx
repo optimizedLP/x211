@@ -211,8 +211,7 @@ export function Devices() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Devices</h1>
           <p className="mt-1 text-sm text-muted">
-            Search across asset tag, serial, room, model, holder and status. Warranty dates drive the
-            obsolete/disposal workflow.
+            Search across asset tag, serial, room, model, holder and status.
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
@@ -233,13 +232,13 @@ export function Devices() {
           <div className="text-right">
             <div className="text-2xl font-semibold tabular-nums">{rows.length}</div>
             <div className="text-xs text-muted">
-              shown{expiredCount > 0 && <span className="text-bad"> · {expiredCount} out of warranty</span>}
+              {expiredCount > 0 && <span className="text-bad">{expiredCount} out of warranty</span>}
             </div>
             <Link
               to="/warranty"
               className="mt-1 inline-block text-xs font-semibold text-accent hover:text-ink"
             >
-              Warranty cliff →
+              Warranty →
             </Link>
           </div>
         </div>

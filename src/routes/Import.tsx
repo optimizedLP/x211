@@ -193,7 +193,7 @@ export function ImportPage() {
             {sourceName || 'the pasted sheet'}.
           </p>
           <p className="mt-1 text-xs text-muted">
-            They are in the fleet now — the sidebar counts and the warranty cliff already include them.
+            They are in the fleet now — the sidebar counts and the Warranty page already include them.
           </p>
         </div>
 

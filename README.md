@@ -5,11 +5,11 @@ printers, chargers, peripherals — with warranty tracking and an obsolete/dispo
 
 ## Status
 
-**Frontend spine, warranty cliff dashboard, device detail/editing and data entry, running on seeded demo data.** No backend yet, by design.
+**Frontend spine, warranty dashboard, device detail/editing and data entry, running on seeded demo data.** No backend yet, by design.
 
 | | |
 |---|---|
-| Built | App shell and routing · device list · instant cross-field search · status/category/location filters (kept in the URL) · sorting · warranty buckets with a shared "today" · warranty cliff dashboard (expired / 30 / 60 / 90-day buckets, single + bulk declare obsolete with undo) · device detail with full-record editing (status, holder, asset tag, serial, warranty dates, location, vendor, notes) · **new-device form** · **CSV/TSV import** with column mapping, dry-run validation and duplicate detection · **remove / restore** (soft delete with a *Recently removed* bin and permanent erase) |
+| Built | App shell and routing · device list · instant cross-field search · status/category/location filters (kept in the URL) · sorting · warranty buckets with a shared "today" · warranty dashboard (expired / 30 / 60 / 90-day buckets, single + bulk declare obsolete with undo) · device detail with full-record editing (status, holder, asset tag, serial, warranty dates, location, vendor, notes) · **new-device form** · **CSV/TSV import** with column mapping, dry-run validation and duplicate detection · **remove / restore** (soft delete with a *Recently removed* bin and permanent erase) |
 | Planned | peripherals & other unlabeled supplies (the one planned stub in the nav) · scan/OCR capture · native `.xlsx` reading — Excel's *Save As → CSV UTF-8* is the supported path |
 | Backend | Not started — the data layer is behind an interface so it can be swapped in later |
 
@@ -101,7 +101,7 @@ fixing a sheet. `Download CSV template` gives a blank file whose headers already
 
 Removal is a **soft delete**, because the common mistake is a mistyped or mis-imported record, not a
 laptop vanishing. `Remove` on the device detail page asks you to type the asset tag, hides the record
-from the list, the warranty cliff and every counter, and sends you to **Recently removed** — the undo.
+from the list, the Warranty page and every counter, and sends you to **Recently removed** — the undo.
 Restoring puts it back exactly as it was.
 
 A removed record still owns its asset tag, so an import or a manual add cannot take the tag and leave

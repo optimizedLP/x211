@@ -184,14 +184,11 @@ const NOTES = [
 type WarrantyPlan = 'expired' | 'd30' | 'd60' | 'd90' | 'ok' | 'unknown'
 
 const STATUS_WEIGHTS: readonly (readonly [DeviceStatus, number])[] = [
-  ['In Service', 62],
-  ['Needs Repair', 8],
-  ['In Repair', 6],
-  ['Repair Denied', 4],
-  ['Out of Warranty', 8],
-  ['Obsolete', 5],
-  ['Pending Pickup', 3],
-  ['Disposed', 4],
+  ['In Service', 68],
+  ['Needs Repair', 10],
+  ['Ticket Open', 8],
+  ['Obsolete', 8],
+  ['Disposed', 6],
 ]
 
 const WARRANTY_WEIGHTS: readonly (readonly [WarrantyPlan, number])[] = [
@@ -211,8 +208,7 @@ function isoOffset(now: Date, days: number): string {
 
 function choosePlan(rng: () => number, status: DeviceStatus): WarrantyPlan {
   // Retired devices are retired precisely because the warranty ran out.
-  if (status === 'Obsolete' || status === 'Pending Pickup' || status === 'Disposed') return 'expired'
-  if (status === 'Out of Warranty' || status === 'Repair Denied') return 'expired'
+  if (status === 'Obsolete' || status === 'Disposed') return 'expired'
   return pickWeighted(rng, WARRANTY_WEIGHTS)
 }
 
@@ -279,7 +275,7 @@ export function createSeedSnapshot(now: Date = new Date()): InventorySnapshot {
     const serial = labelState < 0.12 ? null : makeSerial(rng, serialCounter % 3 === 0 ? 10 : 8)
 
     const location = pick(rng, LOCATIONS)
-    const retired = status === 'Obsolete' || status === 'Pending Pickup' || status === 'Disposed'
+    const retired = status === 'Obsolete' || status === 'Disposed'
 
     devices.push({
       id: `dev-${String(i + 1).padStart(3, '0')}`,

@@ -17,18 +17,15 @@ export type TrackingType = 'serialized' | 'bulk'
 export const DEVICE_STATUSES = [
   'In Service',
   'Needs Repair',
-  'In Repair',
-  'Repair Denied',
-  'Out of Warranty',
+  'Ticket Open',
   'Obsolete',
-  'Pending Pickup',
   'Disposed',
 ] as const
 
 export type DeviceStatus = (typeof DEVICE_STATUSES)[number]
 
 /** A device in one of these states has left the active fleet. */
-export const RETIRED_STATUSES: readonly DeviceStatus[] = ['Obsolete', 'Pending Pickup', 'Disposed']
+export const RETIRED_STATUSES: readonly DeviceStatus[] = ['Obsolete', 'Disposed']
 
 export function isRetired(status: DeviceStatus): boolean {
   return RETIRED_STATUSES.includes(status)

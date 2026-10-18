@@ -19,11 +19,8 @@ const CLIFF_BUCKETS = ['expired', 'd30', 'd60', 'd90'] as const
 
 const OTHER_BUCKETS = ['ok', 'unknown'] as const
 
-const BUCKET_HINTS: Record<WarrantyBucket, string> = {
+const BUCKET_HINTS: Partial<Record<WarrantyBucket, string>> = {
   expired: 'No repair possible — declare obsolete',
-  d30: 'Act this month',
-  d60: 'Next 60 days',
-  d90: 'This quarter',
   ok: 'No action needed',
   unknown: 'Needs a date',
 }
@@ -67,7 +64,9 @@ function BucketTile({
     >
       <div className={`text-3xl font-semibold tabular-nums ${COUNT_CLASSES[tone]}`}>{count}</div>
       <div className="mt-1 text-sm font-semibold text-ink">{WARRANTY_BUCKET_LABELS[bucket]}</div>
-      <div className="mt-0.5 text-[11px] leading-snug text-muted">{BUCKET_HINTS[bucket]}</div>
+      {BUCKET_HINTS[bucket] && (
+        <div className="mt-0.5 text-[11px] leading-snug text-muted">{BUCKET_HINTS[bucket]}</div>
+      )}
     </button>
   )
 }
@@ -183,10 +182,9 @@ export function WarrantyCliff() {
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="max-w-2xl">
-          <h1 className="text-2xl font-semibold tracking-tight">Warranty cliff</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Warranty</h1>
           <p className="mt-1 text-sm text-muted">
-            Inside warranty you can open a repair ticket. Past it, nothing can be done — the device is
-            declared obsolete and DOE collects it. This is the whole decision, ordered by urgency.
+            Past warranty, nothing can be done — the device is declared obsolete and DOE collects it.
           </p>
         </div>
         <Link
@@ -301,7 +299,7 @@ export function WarrantyCliff() {
                     />
                   </th>
                 )}
-                {['Asset tag', 'Serial', 'Category', 'Model', 'Location', 'Status', 'Warranty'].map(
+                {['Asset tag', 'Serial', 'Category', 'Location', 'Status', 'Warranty'].map(
                   (label) => (
                     <th
                       key={label}
@@ -347,10 +345,6 @@ export function WarrantyCliff() {
           {!devicesState.loading && rows.length === 0 && (
             <div className="px-4 py-12 text-center">
               <p className="text-sm text-ink">No devices in this bucket.</p>
-              <p className="mt-1 text-xs text-muted">
-                Retired units are excluded — once declared obsolete they leave the cliff and join the
-                retired fleet.
-              </p>
             </div>
           )}
         </div>
@@ -419,7 +413,7 @@ function CliffRow({
             type="checkbox"
             checked={checked}
             onChange={onToggle}
-            aria-label={`Select ${device.assetTag ?? device.model}`}
+            aria-label={`Select ${device.assetTag ?? device.serial ?? 'device'}`}
             className="size-3.5 accent-[#5b8cff]"
           />
         </td>
@@ -439,10 +433,6 @@ function CliffRow({
         )}
       </td>
       <td className="px-3 py-2.5 whitespace-nowrap text-muted">{category?.name ?? '—'}</td>
-      <td className="px-3 py-2.5 whitespace-nowrap">
-        <span className="text-ink">{device.model}</span>
-        <span className="ml-2 text-xs text-muted">{device.brand}</span>
-      </td>
       <td className="px-3 py-2.5 whitespace-nowrap text-muted">
         {location?.name ?? (device.locationId ? '—' : 'unassigned')}
       </td>

@@ -262,7 +262,7 @@ export function DeviceDetail() {
         <div className="rounded-xl border border-warn/40 bg-warn/10 p-4 text-sm">
           <p className="font-semibold text-warn">This record is removed</p>
           <p className="mt-1 text-xs leading-relaxed text-muted">
-            It is out of the device list, the warranty cliff and the sidebar counts, but nothing was
+            It is out of the device list, the Warranty page and the sidebar counts, but nothing was
             erased. Restore it here, or from <strong>Recently removed</strong>.
           </p>
         </div>
@@ -272,7 +272,7 @@ export function DeviceDetail() {
         <div className="space-y-3 rounded-xl border border-bad/40 bg-bad/10 p-4">
           <p className="text-sm font-semibold text-bad">Remove {confirmPhrase}?</p>
           <p className="text-xs leading-relaxed text-muted">
-            It drops out of the device list, the warranty cliff and the sidebar counts. Nothing is erased —
+            It drops out of the device list, the Warranty page and the sidebar counts. Nothing is erased —
             the record can be restored from <strong>Recently removed</strong>. If the device has left the
             school, set its status to <strong>Disposed</strong> instead: that is the action that keeps an
             audit trail.

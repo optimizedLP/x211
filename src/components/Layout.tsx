@@ -14,7 +14,7 @@ interface NavItem {
 
 const NAV: readonly NavItem[] = [
   { to: '/', label: 'Devices', built: true },
-  { to: '/warranty', label: 'Warranty cliff', built: true },
+  { to: '/warranty', label: 'Warranty', built: true },
   { to: '/bulk', label: 'Peripherals & Other Supplies (unlabeled)', built: false },
   { to: '/removed', label: 'Recently removed', built: true },
 ]
