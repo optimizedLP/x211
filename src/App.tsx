@@ -33,35 +33,6 @@ export default function App() {
               />
             }
           />
-          <Route
-            path="/handover"
-            element={
-              <Placeholder
-                title="Handover / disposal"
-                blurb="The artifact that solves the 170-device pickup: bulk select, change status, export a manifest with a pickup reference number."
-                planned={[
-                  'Bulk select across the device list, then change status in one action',
-                  'Disposal manifest export as CSV and PDF, with date, pickup reference and witness',
-                  'Manifest history so you can prove what left the building, and when',
-                  'Optional CSV/Excel export of the same selection for DOE paperwork',
-                ]}
-              />
-            }
-          />
-          <Route
-            path="/labels"
-            element={
-              <Placeholder
-                title="Asset labels"
-                blurb="Many devices arrived with no label at all. Printing a QR code plus a human-readable ID fixes that, and every label makes the next handover faster."
-                planned={[
-                  'Generate and print sheets of QR-coded asset labels (Avery-style layouts)',
-                  'Scan-to-record: point a phone camera at a tag and the record opens',
-                  'Next-tag suggestion so numbering never collides with existing labels',
-                ]}
-              />
-            }
-          />
           <Route path="/import" element={<ImportPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -10,7 +10,7 @@ printers, chargers, peripherals — with warranty tracking and an obsolete/dispo
 | | |
 |---|---|
 | Built | App shell and routing · device list · instant cross-field search · status/category/location filters (kept in the URL) · sorting · warranty buckets with a shared "today" · warranty cliff dashboard (expired / 30 / 60 / 90-day buckets, single + bulk declare obsolete with undo) · device detail with full-record editing (status, holder, asset tag, serial, warranty dates, location, vendor, notes) · **new-device form** · **CSV/TSV import** with column mapping, dry-run validation and duplicate detection · **remove / restore** (soft delete with a *Recently removed* bin and permanent erase) |
-| Planned | handover/disposal manifest · peripherals & other unlabeled supplies · asset labels · scan/OCR capture (stubs exist in the nav). Native `.xlsx` reading is not built — Excel's *Save As → CSV UTF-8* is the supported path |
+| Planned | peripherals & other unlabeled supplies (the one planned stub in the nav) · scan/OCR capture · native `.xlsx` reading — Excel's *Save As → CSV UTF-8* is the supported path |
 | Backend | Not started — the data layer is behind an interface so it can be swapped in later |
 
 ## Quick start
