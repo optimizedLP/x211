@@ -3,12 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import { DeviceFields } from '../components/DeviceForm'
 import { inventory } from '../lib/data'
-import {
-  blankDeviceForm,
-  formValuesToInput,
-  suggestedWarrantyEnd,
-  validateDeviceForm,
-} from '../lib/deviceForm'
+import { blankDeviceForm, formValuesToInput, validateDeviceForm } from '../lib/deviceForm'
 import type { DeviceFormValues } from '../lib/deviceForm'
 import { useAsync } from '../lib/useAsync'
 
@@ -32,8 +27,6 @@ export function NewDevice() {
   const update = <K extends keyof DeviceFormValues>(key: K, value: DeviceFormValues[K]) => {
     setForm((previous) => ({ ...previous, [key]: value }))
   }
-
-  const suggestion = suggestedWarrantyEnd(form, categories)
 
   const save = async () => {
     if (saving) return
@@ -89,10 +82,6 @@ export function NewDevice() {
           categories={categories}
           locations={locationsState.data ?? []}
           staff={staffState.data ?? []}
-          warrantyEndSuggestion={suggestion}
-          onUseWarrantyEndSuggestion={() => {
-            if (suggestion) update('warrantyEnd', suggestion.date)
-          }}
         />
 
         <p className="text-[11px] text-muted">

@@ -14,8 +14,6 @@ interface DeviceFieldsProps {
   /** Kept selectable even when it is missing from the lists (imported or legacy values). */
   keepCategoryId?: string
   keepHolder?: string | null
-  warrantyEndSuggestion?: { date: string; months: number } | null
-  onUseWarrantyEndSuggestion?: () => void
 }
 
 export function DeviceFields({
@@ -26,8 +24,6 @@ export function DeviceFields({
   staff,
   keepCategoryId,
   keepHolder,
-  warrantyEndSuggestion,
-  onUseWarrantyEndSuggestion,
 }: DeviceFieldsProps) {
   const categoryOptions = categories.filter(
     (category) => category.trackingType === 'serialized' || category.id === keepCategoryId,
@@ -145,52 +141,11 @@ export function DeviceFields({
       </label>
 
       <label className="block">
-        <span className="text-xs text-muted">Warranty start</span>
+        <span className="text-xs text-muted">Warranty end</span>
         <input
           type="date"
-          value={values.warrantyStart}
-          onChange={(event) => onChange('warrantyStart', event.target.value)}
-          className={INPUT_CLASS}
-        />
-      </label>
-
-      <div className="block">
-        <label className="block">
-          <span className="text-xs text-muted">Warranty end</span>
-          <input
-            type="date"
-            value={values.warrantyEnd}
-            onChange={(event) => onChange('warrantyEnd', event.target.value)}
-            className={INPUT_CLASS}
-          />
-        </label>
-        {warrantyEndSuggestion && onUseWarrantyEndSuggestion && (
-          <button
-            type="button"
-            onClick={onUseWarrantyEndSuggestion}
-            className="mt-1 text-[11px] font-semibold text-accent hover:text-ink"
-          >
-            Use {warrantyEndSuggestion.months} months → {warrantyEndSuggestion.date}
-          </button>
-        )}
-      </div>
-
-      <label className="block">
-        <span className="text-xs text-muted">Purchase date</span>
-        <input
-          type="date"
-          value={values.purchaseDate}
-          onChange={(event) => onChange('purchaseDate', event.target.value)}
-          className={INPUT_CLASS}
-        />
-      </label>
-
-      <label className="block">
-        <span className="text-xs text-muted">Vendor</span>
-        <input
-          value={values.vendor}
-          onChange={(event) => onChange('vendor', event.target.value)}
-          placeholder="CDW-G"
+          value={values.warrantyEnd}
+          onChange={(event) => onChange('warrantyEnd', event.target.value)}
           className={INPUT_CLASS}
         />
       </label>

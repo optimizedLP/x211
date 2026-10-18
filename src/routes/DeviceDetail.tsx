@@ -5,12 +5,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { StatusBadge, WarrantyBadge } from '../components/Badge'
 import { DeviceFields } from '../components/DeviceForm'
 import { NOW } from '../lib/clock'
-import {
-  deviceToFormValues,
-  formValuesToInput,
-  suggestedWarrantyEnd,
-  validateDeviceForm,
-} from '../lib/deviceForm'
+import { deviceToFormValues, formValuesToInput, validateDeviceForm } from '../lib/deviceForm'
 import type { DeviceFormValues } from '../lib/deviceForm'
 import { inventory } from '../lib/data'
 import { useAsync } from '../lib/useAsync'
@@ -182,8 +177,6 @@ export function DeviceDetail() {
     !device.locationId && 'location',
   ].filter((item): item is string => Boolean(item))
 
-  const warrantySuggestion = form ? suggestedWarrantyEnd(form, categories) : null
-
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -213,13 +206,24 @@ export function DeviceDetail() {
         </div>
 
         {device.deletedAt ? (
-          <button
-            type="button"
-            onClick={restore}
-            className="rounded-lg border border-accent-2/40 bg-accent-2/10 px-3 py-1.5 text-xs font-semibold text-accent-2 transition-colors hover:bg-accent-2/20"
-          >
-            Restore record
-          </button>
+          !editing && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={startEditing}
+                className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/20"
+              >
+                Edit details
+              </button>
+              <button
+                type="button"
+                onClick={restore}
+                className="rounded-lg border border-accent-2/40 bg-accent-2/10 px-3 py-1.5 text-xs font-semibold text-accent-2 transition-colors hover:bg-accent-2/20"
+              >
+                Restore record
+              </button>
+            </div>
+          )
         ) : (
           !editing && (
             <div className="flex flex-wrap items-center gap-2">
@@ -355,10 +359,6 @@ export function DeviceDetail() {
             staff={staff}
             keepCategoryId={device.categoryId}
             keepHolder={device.assignedTo}
-            warrantyEndSuggestion={warrantySuggestion}
-            onUseWarrantyEndSuggestion={() => {
-              if (warrantySuggestion) update('warrantyEnd', warrantySuggestion.date)
-            }}
           />
 
           <p className="text-[11px] text-muted">
@@ -423,12 +423,9 @@ export function DeviceDetail() {
             </Field>
             <Field label="Location">{room?.name ?? <Missing />}</Field>
             <Field label="Holder">{device.assignedTo ?? <span className="text-muted">Unassigned</span>}</Field>
-            <Field label="Tracking">
-              {isSerialized ? 'Serialized asset' : 'Bulk quantity'}
-            </Field>
           </Panel>
 
-          <Panel title="Warranty & purchase">
+          <Panel title="Warranty">
             <Field label="Warranty state">
               <span
                 className={
@@ -440,13 +437,6 @@ export function DeviceDetail() {
                 {warrantyLabel(device.warrantyEnd, now)}
               </span>
             </Field>
-            <Field label="Warranty start">
-              {device.warrantyStart ? (
-                <span className="font-mono text-[12.5px] text-muted">{device.warrantyStart}</span>
-              ) : (
-                <Missing />
-              )}
-            </Field>
             <Field label="Warranty end">
               {device.warrantyEnd ? (
                 <span className="font-mono text-[12.5px]">{device.warrantyEnd}</span>
@@ -454,14 +444,7 @@ export function DeviceDetail() {
                 <Missing />
               )}
             </Field>
-            <Field label="Purchased">
-              {device.purchaseDate ? (
-                <span className="font-mono text-[12.5px] text-muted">{device.purchaseDate}</span>
-              ) : (
-                <Missing />
-              )}
-            </Field>
-            <Field label="Vendor">{device.vendor ?? <Missing />}</Field>
+
           </Panel>
 
           <section className="rounded-xl border border-line bg-panel p-4">

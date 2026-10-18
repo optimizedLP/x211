@@ -1,6 +1,5 @@
 import type { NewDeviceInput } from './data/types'
-import type { Category, Device, DeviceStatus } from './types'
-import { addMonths } from './warranty'
+import type { Device, DeviceStatus } from './types'
 
 /**
  * The device field set, shared by the detail editor and the new-device form.
@@ -98,20 +97,3 @@ export function validateDeviceForm(form: DeviceFormValues): string | null {
   return null
 }
 
-/**
- * Warranty end implied by the purchase date and the category's standard term.
- * Offered as a one-click suggestion rather than filled in silently, because a
- * wrong warranty end date is the error this app exists to catch.
- */
-export function suggestedWarrantyEnd(
-  form: DeviceFormValues,
-  categories: readonly Category[],
-): { date: string; months: number } | null {
-  if (!form.purchaseDate || form.warrantyEnd) return null
-  const category = categories.find((item) => item.id === form.categoryId)
-  if (!category || category.defaultWarrantyMonths <= 0) return null
-  return {
-    date: addMonths(form.purchaseDate, category.defaultWarrantyMonths),
-    months: category.defaultWarrantyMonths,
-  }
-}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { StatusBadge } from '../components/Badge'
 import { inventory } from '../lib/data'
@@ -25,6 +25,7 @@ function removedAt(iso: string | null): string {
 export function Removed() {
   const version = useInventoryVersion()
   const state = useAsync(() => inventory.listDeletedDevices(), [version])
+  const navigate = useNavigate()
 
   const [confirmEraseId, setConfirmEraseId] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -53,10 +54,6 @@ export function Removed() {
           ← Devices
         </Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">Recently removed</h1>
-        <p className="mt-1 text-sm text-muted">
-          Removed records are hidden from the fleet, the Warranty page and every counter, but nothing is
-          erased. Restore one to put it back exactly where it was.
-        </p>
       </div>
 
       <div className="rounded-xl border border-warn/30 bg-warn/[0.07] p-4 text-xs leading-relaxed text-muted">
@@ -99,7 +96,7 @@ export function Removed() {
           <table className="w-full border-collapse text-sm">
             <thead className="border-b border-line bg-panel-2">
               <tr>
-                {['Device', 'Serial', 'Status', 'Removed', 'Actions'].map((label) => (
+                {['Device', 'Serial', 'Status', 'Notes', 'Removed', 'Actions'].map((label) => (
                   <th
                     key={label}
                     scope="col"
@@ -117,6 +114,7 @@ export function Removed() {
                   device={device}
                   busy={busyId === device.id}
                   confirming={confirmEraseId === device.id}
+                  onOpen={() => navigate(`/devices/${device.id}`)}
                   onRestore={() => run(device.id, () => inventory.restoreDevice(device.id))}
                   onAskErase={() => setConfirmEraseId(device.id)}
                   onCancelErase={() => setConfirmEraseId(null)}
@@ -135,6 +133,7 @@ function RemovedRow({
   device,
   busy,
   confirming,
+  onOpen,
   onRestore,
   onAskErase,
   onCancelErase,
@@ -143,17 +142,27 @@ function RemovedRow({
   device: Device
   busy: boolean
   confirming: boolean
+  onOpen: () => void
   onRestore: () => void
   onAskErase: () => void
   onCancelErase: () => void
   onErase: () => void
 }) {
   return (
-    <tr className="border-b border-line/70 align-top last:border-b-0">
+    <tr
+      onClick={onOpen}
+      className="cursor-pointer border-b border-line/70 align-top last:border-b-0 hover:bg-white/[0.02]"
+    >
       <td className="px-3 py-2.5">
-        <div className="font-mono text-[12.5px] text-ink">
+        {/* The link carries the keyboard/screen-reader path; the row click is the mouse path. */}
+        <Link
+          to={`/devices/${device.id}`}
+          onClick={(event) => event.stopPropagation()}
+          aria-label={`Open ${device.assetTag ?? device.serial ?? 'device'}`}
+          className="inline-block rounded font-mono text-[12.5px] text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+        >
           {device.assetTag ?? <span className="font-sans text-xs text-warn italic">no tag</span>}
-        </div>
+        </Link>
         <div className="text-xs text-muted">
           {device.brand} {device.model}
         </div>
@@ -164,12 +173,18 @@ function RemovedRow({
       <td className="px-3 py-2.5 whitespace-nowrap">
         <StatusBadge status={device.status} />
       </td>
+      <td className="max-w-xs px-3 py-2.5 text-xs leading-relaxed text-muted">
+        {device.notes ? device.notes : '—'}
+      </td>
       <td className="px-3 py-2.5 text-xs whitespace-nowrap text-muted">{removedAt(device.deletedAt)}</td>
       <td className="px-3 py-2.5">
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={onRestore}
+            onClick={(event) => {
+              event.stopPropagation()
+              onRestore()
+            }}
             disabled={busy}
             className="rounded-lg border border-accent-2/40 bg-accent-2/10 px-2.5 py-1 text-xs font-semibold text-accent-2 transition-colors hover:bg-accent-2/20 disabled:opacity-40"
           >
@@ -180,7 +195,10 @@ function RemovedRow({
             <>
               <button
                 type="button"
-                onClick={onErase}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onErase()
+                }}
                 disabled={busy}
                 className="rounded-lg border border-bad/50 bg-bad/15 px-2.5 py-1 text-xs font-semibold text-bad transition-colors hover:bg-bad/25 disabled:opacity-40"
               >
@@ -188,7 +206,10 @@ function RemovedRow({
               </button>
               <button
                 type="button"
-                onClick={onCancelErase}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onCancelErase()
+                }}
                 disabled={busy}
                 className="rounded-lg border border-line px-2.5 py-1 text-xs font-semibold text-muted transition-colors hover:text-ink disabled:opacity-40"
               >
@@ -198,7 +219,10 @@ function RemovedRow({
           ) : (
             <button
               type="button"
-              onClick={onAskErase}
+              onClick={(event) => {
+                event.stopPropagation()
+                onAskErase()
+              }}
               className="rounded-lg border border-line px-2.5 py-1 text-xs font-semibold text-muted transition-colors hover:border-bad/50 hover:text-bad"
             >
               Delete permanently

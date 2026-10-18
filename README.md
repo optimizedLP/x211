@@ -9,7 +9,7 @@ printers, chargers, peripherals — with warranty tracking and an obsolete/dispo
 
 | | |
 |---|---|
-| Built | App shell and routing · device list · instant cross-field search · status/category/location filters (kept in the URL) · sorting · warranty buckets with a shared "today" · warranty dashboard (expired / 30 / 60 / 90-day buckets, single + bulk declare obsolete with undo) · device detail with full-record editing (status, holder, asset tag, serial, warranty dates, location, vendor, notes) · **new-device form** · **CSV/TSV import** with column mapping, dry-run validation and duplicate detection · **remove / restore** (soft delete with a *Recently removed* bin and permanent erase) |
+| Built | App shell and routing · device list · instant cross-field search · status/category/location filters (kept in the URL) · sorting · warranty buckets with a shared "today" · warranty dashboard (expired / 30 / 60 / 90-day buckets, single + bulk declare obsolete with undo) · device detail with full-record editing (status, holder, asset tag, serial, warranty end, location, notes) · **new-device form** · **CSV/TSV import** with column mapping, dry-run validation and duplicate detection · **remove / restore** (soft delete with a *Recently removed* bin and permanent erase) |
 | Planned | peripherals & other unlabeled supplies (the one planned stub in the nav) · scan/OCR capture · native `.xlsx` reading — Excel's *Save As → CSV UTF-8* is the supported path |
 | Backend | Not started — the data layer is behind an interface so it can be swapped in later |
 
@@ -55,11 +55,10 @@ real backend can run them as SQL instead of shipping every row to the browser.
 
 ### Device detail and editing
 
-`/devices/:id` is the full record: identity, assignment, warranty and purchase, notes, and an honest
-placeholder where photos will go once file storage exists. Editing covers status, holder, asset tag,
-serial, category, location, warranty/purchase dates, vendor and notes. Blank fields save as "not
-recorded" — which is how a tag gets filled in for the unlabeled units — and reversed warranty dates
-are rejected. Rows on the device list open the record by click or keyboard.
+`/devices/:id` is the full record: identity, assignment, warranty, notes, and an honest placeholder
+where photos will go once file storage exists. Editing covers status, holder, asset tag, serial,
+category, location, warranty end and notes. Blank fields save as "not recorded" — which is how a tag
+gets filled in for the unlabeled units. Rows on the device list open the record by click or keyboard.
 
 List filters live in the URL (`?q=`, `status=`, `category=`, `location=`, `retired=1`), so opening a
 device and coming back restores the same list, and a filtered view is bookmarkable.
@@ -75,10 +74,8 @@ mapping onto `NewDeviceInput`, and `src/components/DeviceForm.tsx` renders the i
 editor, the new-device form and the import all agree because there is only one implementation.
 
 **Manual (`/devices/new`)** — for one unit at a time. Brand and category are required; model, tag and
-serial are not, because a real share of the fleet has none of them yet. Picking a purchase date offers to
-fill the warranty end from the category's standard term (14 months? 36?) with one click, rather than
-filling it silently — a wrong warranty end is the error this app exists to catch. A duplicate asset
-tag is refused, case-insensitively.
+serial are not, because a real share of the fleet has none of them yet. A duplicate asset tag is
+refused, case-insensitively.
 
 **Import (`/import`)** — upload a CSV/TSV or paste cells straight from Excel. Then:
 
