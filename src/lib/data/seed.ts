@@ -21,7 +21,7 @@ import type { Category, InventorySnapshot, Location, Staff } from '../types'
  */
 
 const CATEGORIES: readonly Category[] = [
-  { id: 'cat-laptop', name: 'Lenovo Laptop', defaultWarrantyMonths: 36, trackingType: 'serialized' },
+  { id: 'cat-laptop', name: 'Windows Laptop', defaultWarrantyMonths: 36, trackingType: 'serialized' },
   { id: 'cat-chromebook', name: 'Chromebook', defaultWarrantyMonths: 12, trackingType: 'serialized' },
   { id: 'cat-ipad', name: 'iPad', defaultWarrantyMonths: 12, trackingType: 'serialized' },
   { id: 'cat-monitor', name: 'Monitor', defaultWarrantyMonths: 36, trackingType: 'serialized' },

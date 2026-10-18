@@ -127,6 +127,9 @@ so “214”, “Room 214” and “room 214” are one room. Re-importing a kno
 Devices enter either through **+ New device** or **Import**. Re-importing a sheet is safe: rows whose
 asset tag already exists are refused in the dry run and skipped, and nothing is ever overwritten.
 
+The dry run previews the first 30 rows and offers **Show all N rows** for the rest — every row is
+validated whether it is on screen or not.
+
 **Clear all data** in the sidebar footer empties the fleet and asks for confirmation first — it is a
 local reset, not a demo reseed.
 

@@ -86,6 +86,10 @@ export function ImportPage() {
     skippedRows: { rowNumber: number; tag: string }[]
   } | null>(null)
   const [fileKey, setFileKey] = useState(0)
+  // The preview is capped so a 300-row sheet opens fast, but every row is
+  // checked anyway — this just unhides the rest when someone needs to hunt for
+  // the rows behind the “N with problems” counter.
+  const [showAllRows, setShowAllRows] = useState(false)
 
   const referencesLoading =
     categoriesState.loading || locationsState.loading || staffState.loading || existingState.loading
@@ -118,6 +122,7 @@ export function ImportPage() {
     setLoadError(null)
     setCommitError(null)
     setResult(null)
+    setShowAllRows(false)
   }
 
   const readFile = async (file: File) => {
@@ -147,6 +152,7 @@ export function ImportPage() {
     setLoadError(null)
     setCommitError(null)
     setResult(null)
+    setShowAllRows(false)
     setFileKey((previous) => previous + 1)
   }
 
@@ -346,7 +352,7 @@ export function ImportPage() {
 
   // --- mapping + dry run ------------------------------------------------------
 
-  const previewRows = plan?.rows.slice(0, PREVIEW_LIMIT) ?? []
+  const previewRows = plan ? (showAllRows ? plan.rows : plan.rows.slice(0, PREVIEW_LIMIT)) : []
   const categoriesForFallback = categories.filter((category) => category.trackingType === 'serialized')
 
   return (
@@ -560,10 +566,21 @@ export function ImportPage() {
               <p className="px-4 py-8 text-center text-sm text-muted">No rows to show.</p>
             )}
             {plan.rows.length > PREVIEW_LIMIT && (
-              <p className="border-t border-line/70 px-3 py-2 text-[11px] text-muted">
-                Showing the first {PREVIEW_LIMIT} of {plan.rows.length} rows. Every row is checked, not
-                just these.
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line/70 px-3 py-2 text-[11px] text-muted">
+                <span>
+                  {showAllRows
+                    ? `Showing all ${plan.rows.length} rows.`
+                    : `Showing the first ${PREVIEW_LIMIT} of ${plan.rows.length} rows.`}{' '}
+                  Every row is checked, not just these.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowAllRows((previous) => !previous)}
+                  className="rounded-lg border border-line px-2.5 py-1 text-[11px] font-semibold text-muted transition-colors hover:border-accent/40 hover:text-accent"
+                >
+                  {showAllRows ? 'Show fewer' : `Show all ${plan.rows.length} rows`}
+                </button>
+              </div>
             )}
           </div>
         </>

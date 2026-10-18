@@ -54,6 +54,15 @@ function normalise(snapshot: InventorySnapshot): InventorySnapshot {
   return {
     ...snapshot,
     devices: snapshot.devices.map((device) => ({ ...device, deletedAt: device.deletedAt ?? null })),
+    // The 36-month laptop category used to be “Lenovo Laptop”. Renaming the
+    // seed is not enough for a browser that already stored a snapshot — and
+    // bumping the key again would throw away real records — so the old label is
+    // rewritten on read instead. The id never changes, so devices are untouched.
+    categories: snapshot.categories.map((category) =>
+      category.id === 'cat-laptop' && category.name === 'Lenovo Laptop'
+        ? { ...category, name: 'Windows Laptop' }
+        : category,
+    ),
   }
 }
 

@@ -214,6 +214,16 @@ const STATUS_ALIASES: Record<string, DeviceStatus> = {
   trashed: 'Disposed',
 }
 
+/**
+ * Old category names that must keep importing after a rename, so a sheet
+ * written before the change does not start failing on a technicality. Keyed by
+ * the normalised cell text, valued by category id. Safe to delete an entry once
+ * no sheet in circulation uses the old label.
+ */
+const CATEGORY_ALIASES: Record<string, string> = {
+  lenovolaptop: 'cat-laptop', // renamed to “Windows Laptop” on request
+}
+
 function normaliseStatus(raw: string): DeviceStatus | null {
   const candidate = headerKey(raw)
   if (!candidate) return null
@@ -361,6 +371,10 @@ export function buildImportPlan({
 
     // --- category
     let category = categoryByKey.get(headerKey(categoryText)) ?? null
+    if (!category && categoryText) {
+      const aliasId = CATEGORY_ALIASES[headerKey(categoryText)]
+      if (aliasId) category = categoryByKey.get(headerKey(aliasId)) ?? null
+    }
     if (!category && categoryText && fallbackCategory) {
       warnings.push(`Unknown category “${categoryText}” — imported as ${fallbackCategory.name}.`)
       category = fallbackCategory
