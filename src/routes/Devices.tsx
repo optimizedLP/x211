@@ -221,7 +221,7 @@ export function Devices() {
               to="/import"
               className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-accent/40 hover:text-accent"
             >
-              Import CSV
+              Import
             </Link>
             <Link
               to="/devices/new"

@@ -16,7 +16,6 @@ const NAV: readonly NavItem[] = [
   { to: '/', label: 'Devices', built: true },
   { to: '/warranty', label: 'Warranty cliff', built: true },
   { to: '/bulk', label: 'Peripherals & Other Supplies (unlabeled)', built: false },
-  { to: '/import', label: 'Import from Excel', built: true },
   { to: '/removed', label: 'Recently removed', built: true },
 ]
 
