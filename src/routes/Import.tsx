@@ -238,7 +238,7 @@ export function ImportPage() {
 
   if (!table) {
     return (
-      <div className="max-w-2xl space-y-5">
+      <div className="space-y-5">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Import from Excel</h1>
           <p className="mt-1 text-sm text-muted">
@@ -247,76 +247,80 @@ export function ImportPage() {
           </p>
         </div>
 
-        <div className="space-y-5 rounded-xl border border-line bg-panel p-5">
-          <div>
-            <label className="block">
-              <span className="text-xs font-semibold text-ink">CSV file</span>
+        <div className="grid items-start gap-5 lg:grid-cols-3">
+          <div className="space-y-5 rounded-xl border border-line bg-panel p-5 lg:col-span-2">
+            <div>
+              <label className="block">
+                <span className="text-xs font-semibold text-ink">CSV file</span>
+                <input
+                  key={fileKey}
+                  type="file"
+                  accept=".csv,.tsv,.txt,text/csv,text/plain"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    if (file) void readFile(file)
+                  }}
+                  className="mt-2 block w-full cursor-pointer rounded-lg border border-line bg-panel-2 px-3 py-2 text-xs text-muted file:mr-3 file:rounded-md file:border-0 file:bg-accent/15 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-accent"
+                />
+              </label>
+              <p className="mt-2 text-[11px] leading-relaxed text-muted">
+                Excel file? Use <strong className="text-ink">File → Save As → CSV UTF-8</strong> and
+                upload that. Comma, semicolon and tab separated all work — the separator is detected.
+              </p>
+            </div>
+
+            <div className="border-t border-line/60 pt-4">
+              <label className="block">
+                <span className="text-xs font-semibold text-ink">…or paste the rows</span>
+                <textarea
+                  value={pasted}
+                  onChange={(event) => setPasted(event.target.value)}
+                  rows={4}
+                  placeholder="Select cells in Excel, copy, and paste here — tabs come through as columns."
+                  className="mt-2 w-full resize-y rounded-lg border border-line bg-panel-2 px-3 py-2 font-mono text-xs text-ink placeholder:font-sans placeholder:text-muted/60 focus:border-accent/60 focus:ring-2 focus:ring-accent/20 focus:outline-none"
+                />
+              </label>
+              <button
+                type="button"
+                disabled={pasted.trim() === ''}
+                onClick={() => applyText(pasted, 'pasted rows')}
+                className="mt-2 rounded-lg border border-accent/50 bg-accent/15 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/25 disabled:opacity-40"
+              >
+                Use pasted rows
+              </button>
+            </div>
+
+            <label className="flex items-center gap-2 text-xs text-muted">
               <input
-                key={fileKey}
-                type="file"
-                accept=".csv,.tsv,.txt,text/csv,text/plain"
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  if (file) void readFile(file)
-                }}
-                className="mt-2 block w-full cursor-pointer rounded-lg border border-line bg-panel-2 px-3 py-2 text-xs text-muted file:mr-3 file:rounded-md file:border-0 file:bg-accent/15 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-accent"
+                type="checkbox"
+                checked={hasHeaderRow}
+                onChange={(event) => setHasHeaderRow(event.target.checked)}
+                className="size-3.5 accent-[#5b8cff]"
               />
+              The first row is a header row
             </label>
-            <p className="mt-2 text-[11px] leading-relaxed text-muted">
-              Excel file? Use <strong className="text-ink">File → Save As → CSV UTF-8</strong> and upload
-              that. Comma, semicolon and tab separated all work — the separator is detected.
-            </p>
+
+            {loadError && (
+              <p className="rounded-lg border border-bad/40 bg-bad/10 px-3 py-2 text-xs text-bad">
+                {loadError}
+              </p>
+            )}
           </div>
 
-          <div className="border-t border-line/60 pt-4">
-            <label className="block">
-              <span className="text-xs font-semibold text-ink">…or paste the rows</span>
-              <textarea
-                value={pasted}
-                onChange={(event) => setPasted(event.target.value)}
-                rows={4}
-                placeholder="Select cells in Excel, copy, and paste here — tabs come through as columns."
-                className="mt-2 w-full resize-y rounded-lg border border-line bg-panel-2 px-3 py-2 font-mono text-xs text-ink placeholder:font-sans placeholder:text-muted/60 focus:border-accent/60 focus:ring-2 focus:ring-accent/20 focus:outline-none"
-              />
-            </label>
+          <div className="rounded-xl border border-line bg-panel p-5 text-xs text-muted">
+            <p className="font-semibold text-ink">No sheet yet?</p>
+            <p className="mt-1 leading-relaxed">
+              Download a blank template, fill it in, and re-upload — the columns already match, so the
+              mapping step will fill itself in.
+            </p>
             <button
               type="button"
-              disabled={pasted.trim() === ''}
-              onClick={() => applyText(pasted, 'pasted rows')}
-              className="mt-2 rounded-lg border border-accent/50 bg-accent/15 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/25 disabled:opacity-40"
+              onClick={downloadTemplate}
+              className="mt-3 rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-accent/40 hover:text-accent"
             >
-              Use pasted rows
+              Download CSV template
             </button>
           </div>
-
-          <label className="flex items-center gap-2 text-xs text-muted">
-            <input
-              type="checkbox"
-              checked={hasHeaderRow}
-              onChange={(event) => setHasHeaderRow(event.target.checked)}
-              className="size-3.5 accent-[#5b8cff]"
-            />
-            The first row is a header row
-          </label>
-
-          {loadError && (
-            <p className="rounded-lg border border-bad/40 bg-bad/10 px-3 py-2 text-xs text-bad">{loadError}</p>
-          )}
-        </div>
-
-        <div className="rounded-xl border border-line bg-panel p-5 text-xs text-muted">
-          <p className="font-semibold text-ink">No sheet yet?</p>
-          <p className="mt-1 leading-relaxed">
-            Download a blank template, fill it in, and re-upload — the columns already match, so the
-            mapping step will fill itself in.
-          </p>
-          <button
-            type="button"
-            onClick={downloadTemplate}
-            className="mt-3 rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-accent/40 hover:text-accent"
-          >
-            Download CSV template
-          </button>
         </div>
       </div>
     )
