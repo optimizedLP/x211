@@ -9,12 +9,16 @@ import type { DeviceQuery, ImportOutcome, InventoryAdapter, NewDeviceInput } fro
 /**
  * localStorage-backed implementation of `InventoryAdapter`.
  *
- * This exists so the whole UI can be built, clicked through and demoed before
- * the Supabase project exists. Everything is async and goes through the
- * interface, so the swap later is a one-line change in `data/index.ts`.
+ * This exists so the whole UI can be built, clicked through and used before the
+ * Supabase project exists. Everything is async and goes through the interface,
+ * so the swap later is a one-line change in `data/index.ts`.
+ *
+ * v2: the demo fleet was removed, so anything still holding the old seeded
+ * snapshot starts blank instead of showing 64 fake devices. Nothing real is
+ * lost by the bump — the old key only ever held generated rows.
  */
 
-const STORAGE_KEY = 'x211:inventory:v1'
+const STORAGE_KEY = 'x211:inventory:v2'
 const LATENCY_MS = 60
 
 function delay(ms: number): Promise<void> {

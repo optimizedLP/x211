@@ -59,6 +59,9 @@ function FleetSummary() {
 
 function DemoNotice() {
   const reset = async () => {
+    // This used to re-seed the demo fleet, so it was cheap to click. With a
+    // blank starting state it deletes real records, so it asks first.
+    if (!window.confirm('Delete every record stored in this browser? This cannot be undone.')) return
     await inventory.reset()
     window.location.reload()
   }
@@ -67,7 +70,7 @@ function DemoNotice() {
     <div className="space-y-2">
       <p className="text-[11px] leading-relaxed text-muted">
         {isDemoData
-          ? 'Running on seeded demo data in localStorage — no backend yet.'
+          ? 'Saved in this browser only — no backend yet.'
           : 'Connected to a live backend.'}
       </p>
       <button
@@ -75,7 +78,7 @@ function DemoNotice() {
         onClick={reset}
         className="w-full rounded-lg border border-line px-3 py-1.5 text-[11px] font-semibold text-muted transition-colors hover:border-bad/50 hover:text-bad"
       >
-        Reset demo data
+        Clear all data
       </button>
     </div>
   )

@@ -105,6 +105,6 @@ export interface InventoryAdapter {
   /** Counts per warranty bucket — powers the dashboard tiles. */
   warrantySummary(now?: Date): Promise<Record<WarrantyBucket, number>>
 
-  /** Drops local data and re-seeds the demo fleet. Mock-only convenience. */
+  /** Drops every local record and returns to a blank fleet. Mock-only convenience. */
   reset(): Promise<void>
 }

@@ -97,5 +97,5 @@ export const inventory: InventoryAdapter = {
   },
 }
 
-/** True while the app is running on seeded demo data rather than a real backend. */
+/** True while the app is running on browser-local data rather than a real backend. */
 export const isDemoData = true

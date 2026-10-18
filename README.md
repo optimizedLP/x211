@@ -5,7 +5,7 @@ printers, chargers, peripherals — with warranty tracking and an obsolete/dispo
 
 ## Status
 
-**Frontend spine, warranty dashboard, device detail/editing and data entry, running on seeded demo data.** No backend yet, by design.
+**Frontend spine, warranty dashboard, device detail/editing and data entry, running on browser-local data.** No backend yet, by design — and no demo rows: the fleet starts empty and is filled by hand or by CSV import.
 
 | | |
 |---|---|
@@ -45,8 +45,8 @@ listBulkItems()
 warrantySummary(now)      // bucket counts for the dashboard
 ```
 
-Today that interface is implemented by `src/lib/data/mockAdapter.ts`, which holds a generated demo
-fleet in `localStorage`. When the Supabase project exists, add `supabaseAdapter.ts` implementing the
+Today that interface is implemented by `src/lib/data/mockAdapter.ts`, which keeps the records in this
+browser's `localStorage`, starting from an empty fleet. When the Supabase project exists, add `supabaseAdapter.ts` implementing the
 same interface and switch it on in `src/lib/data/index.ts`. **No component or route changes** — they
 only know the interface.
 
@@ -111,14 +111,21 @@ keeps its history; the confirmation panel says so in as many words, and so does 
 
 ### Warranty counts
 
-The dashboard and sidebar count only the fleet still in play — units already Obsolete, Pending
-Pickup or Disposed are history. That keeps each bucket tile equal to the rows listed beneath it.
+The dashboard and sidebar count only the fleet still in play — units already Obsolete or Disposed
+are history. That keeps each bucket tile equal to the rows listed beneath it.
 
-### Demo data
+### Starting state
 
-The fleet is generated from a fixed PRNG seed, so it is identical on every install. Warranty dates
-are placed relative to first load, which guarantees the 30/60/90-day buckets have real content.
-**Reset demo data** in the sidebar footer re-seeds from scratch.
+The fleet starts **empty**. `src/lib/data/seed.ts` supplies only reference data — nine categories,
+thirteen rooms and six staff placeholder names — so the add-device form and the importer are usable
+before anything is entered. Edit those lists to match the school; they are ordinary constants, not
+records.
+
+Devices enter either through **+ New device** or **Import**. Re-importing a sheet is safe: rows whose
+asset tag already exists are refused in the dry run and skipped, and nothing is ever overwritten.
+
+**Clear all data** in the sidebar footer empties the fleet and asks for confirmation first — it is a
+local reset, not a demo reseed.
 
 ## Layout
 
@@ -137,7 +144,7 @@ src/
     data/
       types.ts      the InventoryAdapter seam
       mockAdapter.ts  localStorage implementation (swap this out later)
-      seed.ts       deterministic demo fleet
+      seed.ts       blank fleet + starter categories, rooms and staff
   components/       app shell, badges, the shared device field set, placeholder pages
   routes/           Devices, DeviceDetail, NewDevice, Import, Removed, WarrantyCliff + planned stubs
 ```

@@ -135,6 +135,12 @@ export function Devices() {
 
   const devicesState = useAsync(() => inventory.listDevices(query, now), [query])
 
+  // Separates “nothing matches this search” from “there is nothing yet”. With the
+  // demo fleet gone the list is genuinely empty on first run, and telling a new
+  // user to clear filters on an empty fleet would be nonsense.
+  const fleetState = useAsync(() => inventory.listDevices({ includeRetired: true }, now), [now])
+  const fleetIsEmpty = (fleetState.data?.length ?? 0) === 0
+
   const categoryMap = useMemo(
     () => new Map((categoriesState.data ?? []).map((category) => [category.id, category])),
     [categoriesState.data],
@@ -386,20 +392,45 @@ export function Devices() {
 
         {!devicesState.loading && rows.length === 0 && (
           <div className="px-4 py-12 text-center">
-            <p className="text-sm text-ink">No devices match those filters.</p>
-            <p className="mt-1 text-xs text-muted">
-              {includeRetired
-                ? 'Try loosening the search or clearing a filter.'
-                : 'Retired devices are hidden — tick “Include retired” to see obsolete, pickup and disposed units.'}
-            </p>
-            {hasFilters && (
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="mt-4 rounded-lg border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent"
-              >
-                Clear filters
-              </button>
+            {fleetIsEmpty ? (
+              <>
+                <p className="text-sm text-ink">No devices yet.</p>
+                <p className="mt-1 text-xs text-muted">
+                  Add one by hand, or bring the spreadsheet you already keep in through the importer.
+                </p>
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <Link
+                    to="/import"
+                    className="rounded-lg border border-accent/50 bg-accent/15 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/25"
+                  >
+                    Import a CSV
+                  </Link>
+                  <Link
+                    to="/devices/new"
+                    className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-accent/40 hover:text-accent"
+                  >
+                    + New device
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-ink">No devices match those filters.</p>
+                <p className="mt-1 text-xs text-muted">
+                  {includeRetired
+                    ? 'Try loosening the search or clearing a filter.'
+                    : 'Retired devices are hidden — tick “Include retired” to see obsolete, pickup and disposed units.'}
+                </p>
+                {hasFilters && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="mt-4 rounded-lg border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
