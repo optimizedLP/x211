@@ -1,0 +1,156 @@
+# x211 — School Device Inventory
+
+A website to track every device at a NYC public school — laptops, Chromebooks, iPads, monitors,
+printers, chargers, peripherals — with warranty tracking and an obsolete/disposal workflow.
+
+## Status
+
+**Frontend spine, warranty cliff dashboard, device detail/editing and data entry, running on seeded demo data.** No backend yet, by design.
+
+| | |
+|---|---|
+| Built | App shell and routing · device list · instant cross-field search · status/category/location filters (kept in the URL) · sorting · warranty buckets with a shared "today" · warranty cliff dashboard (expired / 30 / 60 / 90-day buckets, single + bulk declare obsolete with undo) · device detail with full-record editing (status, holder, asset tag, serial, warranty dates, location, vendor, notes) · **new-device form** · **CSV/TSV import** with column mapping, dry-run validation and duplicate detection · **remove / restore** (soft delete with a *Recently removed* bin and permanent erase) |
+| Planned | handover/disposal manifest · peripherals & other unlabeled supplies · asset labels · scan/OCR capture (stubs exist in the nav). Native `.xlsx` reading is not built — Excel's *Save As → CSV UTF-8* is the supported path |
+| Backend | Not started — the data layer is behind an interface so it can be swapped in later |
+
+## Quick start
+
+```bash
+npm install
+npm run dev      # http://localhost:5173
+npm run build    # typecheck + production build
+npm run lint
+```
+
+## Frontend first, backend later
+
+The UI never talks to a database. Everything goes through one interface,
+`InventoryAdapter` in `src/lib/data/types.ts`:
+
+```ts
+listDevices(query, now)   // filtering/search happens behind the interface
+getDevice(id)
+updateDevice(id, patch)
+updateDevices(ids, patch) // one batch status change, not N round trips
+createDevice(input)       // one record; throws on a duplicate asset tag
+importDevices(inputs)     // bulk; duplicate tags are reported and skipped, never overwritten
+deleteDevice(id)          // soft delete: hidden everywhere, still owns its tag
+restoreDevice(id)
+listDeletedDevices()
+purgeDevice(id)           // permanent erase; refused unless already soft-deleted
+listCategories()
+listLocations()
+listStaff()                 // holder picker — staff only, no student names
+listBulkItems()
+warrantySummary(now)      // bucket counts for the dashboard
+```
+
+Today that interface is implemented by `src/lib/data/mockAdapter.ts`, which holds a generated demo
+fleet in `localStorage`. When the Supabase project exists, add `supabaseAdapter.ts` implementing the
+same interface and switch it on in `src/lib/data/index.ts`. **No component or route changes** — they
+only know the interface.
+
+Filtering and search deliberately live behind the interface rather than in the table component, so a
+real backend can run them as SQL instead of shipping every row to the browser.
+
+### Device detail and editing
+
+`/devices/:id` is the full record: identity, assignment, warranty and purchase, notes, and an honest
+placeholder where photos will go once file storage exists. Editing covers status, holder, asset tag,
+serial, category, location, warranty/purchase dates, vendor and notes. Blank fields save as "not
+recorded" — which is how a tag gets filled in for the unlabeled units — and reversed warranty dates
+are rejected. Rows on the device list open the record by click or keyboard.
+
+List filters live in the URL (`?q=`, `status=`, `category=`, `location=`, `retired=1`), so opening a
+device and coming back restores the same list, and a filtered view is bookmarkable.
+
+Writes go through `src/lib/data/index.ts`, which wraps the adapter and bumps a shared version
+counter. Screens pass `useInventoryVersion()` into their fetch dependencies, so declaring a device
+obsolete updates the warranty dashboard and the sidebar counters together.
+
+### Adding devices
+
+Two routes, one field set. `src/lib/deviceForm.ts` owns the form values, the validation and the
+mapping onto `NewDeviceInput`, and `src/components/DeviceForm.tsx` renders the inputs — the detail
+editor, the new-device form and the import all agree because there is only one implementation.
+
+**Manual (`/devices/new`)** — for one unit at a time. Brand, model and category are required; tag and
+serial are not, because a real share of the fleet has neither yet. Picking a purchase date offers to
+fill the warranty end from the category's standard term (14 months? 36?) with one click, rather than
+filling it silently — a wrong warranty end is the error this app exists to catch. A duplicate asset
+tag is refused, case-insensitively.
+
+**Import (`/import`)** — upload a CSV/TSV or paste cells straight from Excel. Then:
+
+1. **Column mapping**, guessed from the header names (`Asset Tag`, `S/N`, `Warranty Expiration`,
+   `Assigned To`, …) and overridable per field. Brand, model and category are required.
+2. **Dry run** — the preview is generated by the same function that produces the records, so what is
+   shown is what would be written. Per-row errors (blank category, duplicate tag, unreadable date,
+   warranty end before start) block that row; warnings (unknown status, unknown holder, unknown room,
+   warranty end derived from the purchase date) let it through and say what was assumed.
+3. **Commit** — only clean rows are written, then a result screen reports what landed and what was
+   skipped because its tag already existed.
+
+A *blank or unknown category* can be mapped to a fallback category, which is reported on each affected
+row rather than applied quietly. Dates accept `YYYY-MM-DD`, `M/D/YYYY`, `M/D/YY` and Excel serial
+numbers. Nothing is ever overwritten: a tag that exists is skipped, so the import can be re-run after
+fixing a sheet. `Download CSV template` gives a blank file whose headers already map.
+
+### Removing a record
+
+Removal is a **soft delete**, because the common mistake is a mistyped or mis-imported record, not a
+laptop vanishing. `Remove` on the device detail page asks you to type the asset tag, hides the record
+from the list, the warranty cliff and every counter, and sends you to **Recently removed** — the undo.
+Restoring puts it back exactly as it was.
+
+A removed record still owns its asset tag, so an import or a manual add cannot take the tag and leave
+a restore primed to collide. Erasing for good is a second, separate click in the bin, and the data
+layer refuses to purge anything that has not been removed first.
+
+**This is not the disposal workflow.** A device that left the school should be set to `Disposed`, which
+keeps its history; the confirmation panel says so in as many words, and so does the bin.
+
+
+### Warranty counts
+
+The dashboard and sidebar count only the fleet still in play — units already Obsolete, Pending
+Pickup or Disposed are history. That keeps each bucket tile equal to the rows listed beneath it.
+
+### Demo data
+
+The fleet is generated from a fixed PRNG seed, so it is identical on every install. Warranty dates
+are placed relative to first load, which guarantees the 30/60/90-day buckets have real content.
+**Reset demo data** in the sidebar footer re-seeds from scratch.
+
+## Layout
+
+```
+src/
+  lib/
+    types.ts        domain model (devices, statuses, categories, locations, bulk items)
+    warranty.ts     warranty buckets, day countdowns and status tones
+    dates.ts        tolerant spreadsheet date parsing (ISO, US, Excel serials)
+    csv.ts          dependency-free RFC 4180 reader + separator detection
+    importPlan.ts   column guessing, row validation and the dry-run plan
+    deviceForm.ts   shared form values, validation and NewDeviceInput mapping
+    clock.ts        one shared "now", so no two rows disagree about today
+    useAsync.ts     small loading/error hook for adapter calls
+    useInventoryVersion.ts  subscribes screens to writes so they refetch
+    data/
+      types.ts      the InventoryAdapter seam
+      mockAdapter.ts  localStorage implementation (swap this out later)
+      seed.ts       deterministic demo fleet
+  components/       app shell, badges, the shared device field set, placeholder pages
+  routes/           Devices, DeviceDetail, NewDevice, Import, Removed, WarrantyCliff + planned stubs
+```
+
+## Data rules
+
+- **No student names.** Holders are staff only (room/location plus staff initials). If a device is
+  ever linked to a named student, FERPA applies.
+- This is a **local operational tracker**, not a replacement for the official DOE asset system.
+
+## Notes
+
+- Tailwind CSS v4 (via `@tailwindcss/vite`), React 19, React Router 7, TypeScript in strict mode.
+- The colour palette is defined once in `src/index.css` and shared with the project's local handoff notes.

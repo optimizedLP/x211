@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/* Palette shared with the project's local handoff notes so the app and the doc match. */
+@theme {
+  --color-bg: #0f1115;
+  --color-panel: #171a21;
+  --color-panel-2: #1d2129;
+  --color-line: #2a2f3a;
+  --color-ink: #e6e8ee;
+  --color-muted: #9aa3b2;
+  --color-accent: #5b8cff;
+  --color-accent-2: #38d39f;
+  --color-warn: #f0b429;
+  --color-bad: #f2646a;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
