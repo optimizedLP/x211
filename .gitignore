@@ -35,6 +35,13 @@ dist-ssr
 # Files
 progress.html
 
+# Reference photos of real school asset tags (local only)
+sample-tags/
+
+# OCR runtime and model files copied from node_modules by scripts/scan-assets.mjs.
+# Generated, several megabytes, and always reproducible from the lockfile.
+public/scan/
+
 # Real inventory exports. The whole point of this app is spreadsheets of live asset
 # data, so a stray export must never land in a public repo. Sample fixtures are fine.
 *.csv

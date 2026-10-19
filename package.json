@@ -7,21 +7,26 @@
     "node": "22.x"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "node scripts/scan-assets.mjs && vite",
+    "build": "node scripts/scan-assets.mjs && tsc -b && vite build",
+    "scan:assets": "node scripts/scan-assets.mjs",
     "build:demo": "tsc -b && VITE_DEMO=1 vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@gutenye/ocr-browser": "^1.4.9",
     "@supabase/supabase-js": "^2.118.0",
     "@tailwindcss/vite": "^4.3.3",
+    "@zxing/browser": "^0.2.1",
+    "onnxruntime-web": "1.20.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
+    "@gutenye/ocr-models": "^1.4.2",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",

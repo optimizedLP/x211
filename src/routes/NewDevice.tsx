@@ -2,7 +2,10 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { DeviceFields } from '../components/DeviceForm'
+import type { ScanResult } from '../components/ScanTag'
+import { ScanTag } from '../components/ScanTag'
 import { inventory } from '../lib/data'
+import { isDemoBuild } from '../lib/demo'
 import { blankDeviceForm, formValuesToInput, validateDeviceForm } from '../lib/deviceForm'
 import type { DeviceFormValues } from '../lib/deviceForm'
 import { useAsync } from '../lib/useAsync'
@@ -23,9 +26,30 @@ export function NewDevice() {
   const [form, setForm] = useState<DeviceFormValues>(() => blankDeviceForm())
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const [scanned, setScanned] = useState(false)
+  const [review, setReview] = useState({ tag: false, serial: false })
 
   const update = <K extends keyof DeviceFormValues>(key: K, value: DeviceFormValues[K]) => {
     setForm((previous) => ({ ...previous, [key]: value }))
+    // Typing in a field is the confirmation, so the warning goes away with the
+    // first keystroke rather than lingering on a corrected value.
+    if (key === 'assetTag') setReview((current) => (current.tag ? { ...current, tag: false } : current))
+    if (key === 'serial') setReview((current) => (current.serial ? { ...current, serial: false } : current))
+  }
+
+  const useScan = (result: ScanResult) => {
+    setForm((previous) => ({
+      ...previous,
+      assetTag: result.assetTag || previous.assetTag,
+      serial: result.serial || previous.serial,
+    }))
+    setReview({
+      tag: result.assetTag !== '' && !result.tagIsExact,
+      // Every serial on this label is read by OCR, so it always deserves a look.
+      serial: result.serial !== '',
+    })
+    setScanned(true)
   }
 
   const save = async () => {
@@ -76,12 +100,32 @@ export function NewDevice() {
           </span>
         </div>
 
+        {/* The demo build has no scanner assets, so the control is absent there. */}
+        {!isDemoBuild && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setScanning(true)}
+              className="rounded-lg border border-accent/50 bg-accent/15 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/25"
+            >
+              Scan the asset tag
+            </button>
+            <span className="text-[11px] text-muted">
+              {scanned
+                ? 'Photo read on this device, then discarded.'
+                : 'Fills the tag and serial from a photo of the label.'}
+            </span>
+          </div>
+        )}
+
         <DeviceFields
           values={form}
           onChange={update}
           categories={categories}
           locations={locationsState.data ?? []}
           staff={staffState.data ?? []}
+          tagNeedsReview={review.tag}
+          serialNeedsReview={review.serial}
         />
 
         <p className="text-[11px] text-muted">
@@ -108,6 +152,10 @@ export function NewDevice() {
           </Link>
         </div>
       </form>
+
+      {scanning && !isDemoBuild && (
+        <ScanTag onClose={() => setScanning(false)} onUse={useScan} />
+      )}
     </div>
   )
 }

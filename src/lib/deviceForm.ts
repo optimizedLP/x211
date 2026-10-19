@@ -1,4 +1,9 @@
 import type { NewDeviceInput } from './data/types'
+import {
+  MAX_IDENTIFIER_LENGTH,
+  normalizeAssetTag,
+  normalizeSerial,
+} from './identifiers'
 import type { Device, DeviceStatus } from './types'
 
 /**
@@ -71,8 +76,10 @@ export function formValuesToInput(form: DeviceFormValues): NewDeviceInput {
     categoryId: form.categoryId,
     brand: form.brand.trim(),
     model: form.model.trim(),
-    assetTag: optional(form.assetTag),
-    serial: optional(form.serial),
+    // Keys are compared in this normalised form by every adapter, so a value
+    // typed in lower case must not become a second record.
+    assetTag: normalizeAssetTag(form.assetTag),
+    serial: normalizeSerial(form.serial),
     locationId: optional(form.locationId),
     assignedTo: optional(form.assignedTo),
     status: form.status,
@@ -88,6 +95,14 @@ export function formValuesToInput(form: DeviceFormValues): NewDeviceInput {
 export function validateDeviceForm(form: DeviceFormValues): string | null {
   if (!form.brand.trim()) return 'Brand is required.'
   if (!form.categoryId) return 'Category is required.'
+  // Length is a paste/scan guard, not a format rule — the fleet has serials
+  // from 7 to 22 characters and older tags may differ from today's pattern.
+  if ((normalizeAssetTag(form.assetTag)?.length ?? 0) > MAX_IDENTIFIER_LENGTH) {
+    return 'Asset tag is too long — check for a stray character.'
+  }
+  if ((normalizeSerial(form.serial)?.length ?? 0) > MAX_IDENTIFIER_LENGTH) {
+    return 'Serial number is too long — check for a stray character.'
+  }
   if (form.warrantyStart && form.warrantyEnd && form.warrantyEnd < form.warrantyStart) {
     return 'Warranty end cannot be earlier than warranty start.'
   }

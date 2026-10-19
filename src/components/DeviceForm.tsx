@@ -14,6 +14,12 @@ interface DeviceFieldsProps {
   /** Kept selectable even when it is missing from the lists (imported or legacy values). */
   keepCategoryId?: string
   keepHolder?: string | null
+  /**
+   * Set when a photo filled the field and nobody has confirmed it yet. The
+   * barcode tag is exact; an OCR tag and every OCR serial are a guess.
+   */
+  tagNeedsReview?: boolean
+  serialNeedsReview?: boolean
 }
 
 export function DeviceFields({
@@ -24,6 +30,8 @@ export function DeviceFields({
   staff,
   keepCategoryId,
   keepHolder,
+  tagNeedsReview = false,
+  serialNeedsReview = false,
 }: DeviceFieldsProps) {
   const categoryOptions = categories.filter(
     (category) => category.trackingType === 'serialized' || category.id === keepCategoryId,
@@ -37,23 +45,29 @@ export function DeviceFields({
     <div className="grid gap-4 sm:grid-cols-2">
       <label className="block">
         <span className="text-xs text-muted">Asset tag</span>
+        {tagNeedsReview && (
+          <span className="ml-2 text-[11px] text-warn">read from the photo — check this</span>
+        )}
         <input
           value={values.assetTag}
           onChange={(event) => onChange('assetTag', event.target.value)}
           placeholder="X211-1050"
           autoComplete="off"
-          className={`${INPUT_CLASS} font-mono`}
+          className={`${INPUT_CLASS} font-mono ${tagNeedsReview ? 'border-warn/50' : ''}`}
         />
       </label>
 
       <label className="block">
         <span className="text-xs text-muted">Serial number</span>
+        {serialNeedsReview && (
+          <span className="ml-2 text-[11px] text-warn">read from the photo — check this</span>
+        )}
         <input
           value={values.serial}
           onChange={(event) => onChange('serial', event.target.value)}
           placeholder="Read it off the bottom of the unit"
           autoComplete="off"
-          className={`${INPUT_CLASS} font-mono`}
+          className={`${INPUT_CLASS} font-mono ${serialNeedsReview ? 'border-warn/50' : ''}`}
         />
       </label>
 
