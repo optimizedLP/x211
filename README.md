@@ -3,16 +3,6 @@
 A website to track every device at a NYC public school — laptops, Chromebooks, iPads, monitors,
 printers, chargers and peripherals — with warranty tracking and an obsolete/disposal workflow.
 
-## Run it
-
-```bash
-npm install
-npm run dev         # http://localhost:5173
-npm run build       # typecheck + production build
-npm run build:demo  # sample-data build for the public demo
-npm run lint
-```
-
 ## What it does
 
 - Device list with instant search, status/category/location filters (kept in the URL), sorting and a
@@ -29,13 +19,3 @@ npm run lint
 
 https://optimizedlp.github.io/x211/ — a separate build with invented sample data, no sign-in and no
 backend credentials.
-
-## Data layer
-
-Nothing in the UI talks to a database directly. Everything goes through `InventoryAdapter` in
-`src/lib/data/types.ts`, implemented by `supabaseAdapter.ts` in production and `mockAdapter.ts` in
-the demo.
-
-## Notes
-
-Tailwind CSS v4, React 19, React Router 7, TypeScript in strict mode.
