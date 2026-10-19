@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 
-import { inventory } from '../lib/data'
+import { useAuth } from '../lib/authContext'
+import { inventory, isDemoData } from '../lib/data'
 import { useInventoryVersion } from '../lib/useInventoryVersion'
 import { WARRANTY_BUCKET_LABELS } from '../lib/warranty'
 import { useAsync } from '../lib/useAsync'
@@ -53,10 +54,15 @@ function FleetSummary() {
   )
 }
 
-function DemoNotice() {
+/**
+ * Local-only actions live here. Against a real database the reset button would
+ * be a live-inventory wipe, so it is replaced by Sign out instead.
+ */
+function AccountFooter() {
+  const { signOut } = useAuth()
+
   const reset = async () => {
-    // This used to re-seed the demo fleet, so it was cheap to click. With a
-    // blank starting state it deletes real records, so it asks first.
+    // With a blank starting state this deletes real records, so it asks first.
     if (!window.confirm('Delete every record stored in this browser? This cannot be undone.')) return
     await inventory.reset()
     window.location.reload()
@@ -64,13 +70,23 @@ function DemoNotice() {
 
   return (
     <div className="space-y-2">
-      <button
-        type="button"
-        onClick={reset}
-        className="w-full rounded-lg border border-line px-3 py-1.5 text-[11px] font-semibold text-muted transition-colors hover:border-bad/50 hover:text-bad"
-      >
-        Clear all data
-      </button>
+      {isDemoData ? (
+        <button
+          type="button"
+          onClick={reset}
+          className="w-full rounded-lg border border-line px-3 py-1.5 text-[11px] font-semibold text-muted transition-colors hover:border-bad/50 hover:text-bad"
+        >
+          Clear all data
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          className="w-full rounded-lg border border-line px-3 py-1.5 text-[11px] font-semibold text-muted transition-colors hover:border-accent/40 hover:text-accent"
+        >
+          Sign out
+        </button>
+      )}
     </div>
   )
 }
@@ -104,7 +120,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="hidden border-t border-line px-5 py-4 md:mt-auto md:block">
           <FleetSummary />
           <div className="mt-4 border-t border-line pt-4">
-            <DemoNotice />
+            <AccountFooter />
           </div>
         </div>
       </aside>

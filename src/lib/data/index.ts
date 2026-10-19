@@ -1,4 +1,6 @@
+import { isBackendConfigured } from '../supabase'
 import { createMockAdapter } from './mockAdapter'
+import { createSupabaseAdapter } from './supabaseAdapter'
 import type { InventoryAdapter } from './types'
 
 export type {
@@ -8,7 +10,12 @@ export type {
   NewDeviceInput,
 } from './types'
 
-const backend = createMockAdapter()
+/**
+ * Single point where the app picks its backend: Supabase when both public env
+ * vars are present, browser-local data otherwise. A fresh clone with no
+ * `.env.local` still runs, which is what makes the demo path safe to keep.
+ */
+const backend = isBackendConfigured ? createSupabaseAdapter() : createMockAdapter()
 
 /**
  * A mutation counter, so screens that fetched through `useAsync` can refetch
@@ -35,15 +42,9 @@ export function getInventoryVersion(): number {
 }
 
 /**
- * Single point where the app picks its backend.
- *
- * When the Supabase project is ready, add `supabaseAdapter.ts`, import it here,
- * and switch on `import.meta.env.VITE_DATA_ADAPTER`. Nothing under
- * `src/components` or `src/routes` has to change — they only know this
- * interface.
- *
- * Writes are wrapped rather than called directly so every adapter gets the
- * same change notification for free.
+ * Writes are wrapped rather than called directly, so every adapter gets the
+ * same change notification for free — the sidebar counters live outside the
+ * route being edited and would otherwise show the pre-change total.
  */
 export const inventory: InventoryAdapter = {
   ...backend,
@@ -97,5 +98,5 @@ export const inventory: InventoryAdapter = {
   },
 }
 
-/** True while the app is running on browser-local data rather than a real backend. */
-export const isDemoData = true
+/** False once the Supabase env vars are set — used to hide local-only controls. */
+export const isDemoData = !isBackendConfigured

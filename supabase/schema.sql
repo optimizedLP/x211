@@ -1,0 +1,147 @@
+-- x211 — schema, reference data, indexes and policies.
+--
+-- Paste this whole file into Supabase → SQL Editor → New query → Run.
+-- It is idempotent: running it twice is safe.
+--
+-- Design notes:
+--   * Rooms and staff start empty. The importer creates them from the sheet.
+--   * Categories are reference data (a device cannot exist without one).
+--   * A removed device keeps its asset tag, so restoring it can never collide
+--     with a tag imported in the meantime — the unique index covers deleted
+--     rows too.
+--   * RLS is on for every table. Only signed-in users (the shared access code)
+--     can read or write; the publishable key on its own gets nothing.
+
+-- ---------------------------------------------------------------- categories
+create table if not exists categories (
+  id                      text primary key,
+  name                    text not null,
+  default_warranty_months int  not null default 12,
+  tracking_type           text not null default 'serialized'
+                          check (tracking_type in ('serialized', 'bulk'))
+);
+
+insert into categories (id, name, default_warranty_months, tracking_type) values
+  ('cat-laptop',     'Windows Laptop', 36, 'serialized'),
+  ('cat-chromebook', 'Chromebook',     12, 'serialized'),
+  ('cat-ipad',       'iPad',           12, 'serialized'),
+  ('cat-monitor',    'Monitor',        36, 'serialized'),
+  ('cat-printer',    'Printer',        36, 'serialized'),
+  ('cat-charger',    'Charger',        12, 'bulk'),
+  ('cat-keyboard',   'Keyboard',       12, 'bulk'),
+  ('cat-mouse',      'Mouse',          12, 'bulk'),
+  ('cat-cable',      'Cable',          12, 'bulk')
+on conflict (id) do update
+  set name = excluded.name,
+      default_warranty_months = excluded.default_warranty_months,
+      tracking_type = excluded.tracking_type;
+
+-- ----------------------------------------------------------------- locations
+create table if not exists locations (
+  id          text primary key,
+  name        text not null,
+  room_number text,
+  floor       text,
+  created_at  timestamptz not null default now()
+);
+
+create unique index if not exists locations_name_unique
+  on locations (lower(name));
+
+-- --------------------------------------------------------------------- staff
+create table if not exists staff (
+  id         text primary key,
+  name       text not null,
+  role       text,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists staff_name_unique
+  on staff (lower(name));
+
+-- ------------------------------------------------------------------- devices
+create table if not exists devices (
+  id            uuid primary key default gen_random_uuid(),
+  tracking_type text not null default 'serialized'
+                check (tracking_type in ('serialized', 'bulk')),
+  category_id   text not null references categories(id),
+  brand         text not null,
+  model         text not null default '',
+  asset_tag     text,
+  serial        text,
+  location_id   text references locations(id) on delete set null,
+  assigned_to   text,
+  status        text not null default 'In Service'
+                check (status in ('In Service', 'Needs Repair', 'Ticket Open',
+                                  'Obsolete', 'Disposed')),
+  warranty_start date,
+  warranty_end   date,
+  purchase_date  date,
+  vendor         text,
+  notes          text,
+  photo_url      text,
+  created_at     date not null default current_date,
+  updated_at     date not null default current_date,
+  deleted_at     timestamptz
+);
+
+-- One tag per device, case-insensitive, and a removed record keeps its tag.
+create unique index if not exists devices_asset_tag_unique
+  on devices (upper(asset_tag)) where asset_tag is not null;
+
+create index if not exists devices_deleted_at_idx on devices (deleted_at);
+create index if not exists devices_status_idx     on devices (status);
+create index if not exists devices_warranty_end_idx on devices (warranty_end);
+
+-- ---------------------------------------------------------------- bulk items
+create table if not exists bulk_items (
+  id          uuid primary key default gen_random_uuid(),
+  category_id text not null references categories(id),
+  quantity    int  not null default 0,
+  location_id text references locations(id) on delete set null,
+  notes       text,
+  updated_at  date not null default current_date
+);
+
+-- ------------------------------------------------------------ updated_at
+create or replace function set_updated_at() returns trigger
+language plpgsql as $$
+begin
+  new.updated_at := current_date;
+  return new;
+end
+$$;
+
+drop trigger if exists devices_touch_updated_at on devices;
+create trigger devices_touch_updated_at
+  before update on devices
+  for each row execute function set_updated_at();
+
+-- ------------------------------------------------------------------- access
+-- Row-level security: signed-in users get full access (one shared code means
+-- one trusted role), anonymous requests get nothing at all.
+alter table categories enable row level security;
+alter table locations  enable row level security;
+alter table staff      enable row level security;
+alter table devices    enable row level security;
+alter table bulk_items enable row level security;
+
+drop policy if exists authenticated_all on categories;
+create policy authenticated_all on categories for all to authenticated using (true) with check (true);
+
+drop policy if exists authenticated_all on locations;
+create policy authenticated_all on locations for all to authenticated using (true) with check (true);
+
+drop policy if exists authenticated_all on staff;
+create policy authenticated_all on staff for all to authenticated using (true) with check (true);
+
+drop policy if exists authenticated_all on devices;
+create policy authenticated_all on devices for all to authenticated using (true) with check (true);
+
+drop policy if exists authenticated_all on bulk_items;
+create policy authenticated_all on bulk_items for all to authenticated using (true) with check (true);
+
+-- The browser only ever uses the publishable (anon) key, and that key must not
+-- reach the tables directly: the app signs in first.
+revoke all on all tables in schema public from anon;
+grant select, insert, update, delete on all tables in schema public to authenticated;
