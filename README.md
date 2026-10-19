@@ -17,5 +17,4 @@ printers, chargers and peripherals — with warranty tracking and an obsolete/di
 
 ## Public demo
 
-https://optimizedlp.github.io/x211/ — a separate build with invented sample data, no sign-in and no
-backend credentials.
+https://optimizedlp.github.io/x211/ — a separate build with invented sample data, and no sign-in.
