@@ -1,107 +1,41 @@
 # x211 — School Device Inventory
 
 A website to track every device at a NYC public school — laptops, Chromebooks, iPads, monitors,
-printers, chargers, peripherals — with warranty tracking and an obsolete/disposal workflow.
+printers, chargers and peripherals — with warranty tracking and an obsolete/disposal workflow.
 
-## Live
-
-| | |
-|---|---|
-| App (access code required) | https://x211-nyc.vercel.app |
-| Public demo (sample data) | https://optimizedlp.github.io/x211/ |
-
-The demo is a separate build of this same code: invented devices, browser-local storage, no sign-in
-and no backend credentials. See [Public demo](#public-demo-github-pages).
-
-## Status
-
-**Deployed.** A Supabase-backed inventory with a single access code, plus a public sample-data demo. The real fleet starts empty and is filled by hand or by CSV import.
-
-| | |
-|---|---|
-| Built | App shell and routing · device list · instant cross-field search · status/category/location filters (kept in the URL) · sorting · warranty buckets with a shared "today" · warranty dashboard (expired / 30 / 60 / 90-day buckets, single + bulk declare obsolete with undo) · device detail with full-record editing (status, holder, asset tag, serial, warranty end, location, notes) · **new-device form** · **CSV/TSV import** with column mapping, dry-run validation and duplicate detection · **remove / restore** (soft delete with a *Recently removed* bin and permanent erase) |
-| Planned | peripherals & other unlabeled supplies (the one planned stub in the nav) · scan/OCR capture · native `.xlsx` reading — Excel's *Save As → CSV UTF-8* is the supported path |
-| Backend | Supabase — Postgres with row-level security. A browser-local adapter remains for the demo and for offline use |
-
-## Quick start
+## Run it
 
 ```bash
 npm install
 npm run dev         # http://localhost:5173
-npm run build       # typecheck + production build (real app, Vercel)
-npm run build:demo  # typecheck + sample-data build for GitHub Pages
+npm run build       # typecheck + production build
+npm run build:demo  # sample-data build for the public demo
 npm run lint
 ```
 
-## Public demo (GitHub Pages)
+## What it does
 
-The showcase at https://optimizedlp.github.io/x211/ is built by `npm run build:demo`, which differs
-from the real build in exactly four ways:
+- Device list with instant search, status/category/location filters (kept in the URL), sorting and a
+  warranty dashboard split into expired / 30 / 60 / 90-day buckets.
+- Full-record device editing, a new-device form, and CSV/TSV import with column mapping, dry-run
+  validation and duplicate detection. Nothing is overwritten — a duplicate asset tag is skipped.
+- Soft delete with a **Recently removed** bin: removing a record is undoable, while a device that
+  left the school is marked **Disposed** so its history survives.
+- Light by day, dark after sunset, with a remembered override.
+- Supabase in production (Postgres + row-level security, one shared access code); browser-local
+  storage for offline work and for the demo.
 
-- **Invented data.** `src/lib/data/demoSeed.ts` supplies 44 fictional devices, ten rooms and seven
-  people, with dates generated relative to the day the page loads. The real app still starts empty.
-- **No backend.** `vite.config.ts` blanks `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in
-  demo builds, so the browser-local adapter takes over and no credential can reach a public bundle.
-  The Pages workflow fails the build if `dist` ever contains `supabase.co` or a publishable key.
-- **Own storage key.** Demo data lives under `x211:demo:v1`, never mixed with local development data.
-- **Hash routing.** Pages cannot rewrite unknown paths, so the demo uses `/#/devices/abc`; the real
-  app keeps clean URLs. `base` is `/x211/` for Pages and `/` for Vercel.
+## Public demo
 
-`.github/workflows/pages.yml` builds and deploys on every push to `main`. One-time setup: repository
-**Settings → Pages → Source: GitHub Actions**.
+https://optimizedlp.github.io/x211/ — a separate build with invented sample data, no sign-in and no
+backend credentials.
 
 ## Data layer
 
-Nothing in the UI talks to a database directly. Everything goes through one interface,
-`InventoryAdapter` in `src/lib/data/types.ts`, implemented by Supabase in production and by
-`localStorage` in the demo:
-
-```ts
-listDevices(query, now)   // filtering/search happens behind the interface
-getDevice(id)
-updateDevice(id, patch)
-updateDevices(ids, patch) // one batch status change, not N round trips
-createDevice(input)       // one record; throws on a duplicate asset tag
-importDevices(inputs)     // bulk; duplicate tags are reported and skipped, never overwritten
-deleteDevice(id)          // soft delete: hidden everywhere, still owns its tag
-restoreDevice(id)
-listDeletedDevices()
-purgeDevice(id)           // permanent erase; refused unless already soft-deleted
-listCategories()
-listLocations()
-listStaff()                 // holder picker — staff only, no student names
-listBulkItems()
-warrantySummary(now)      // bucket counts for the dashboard
-```
-
-## Layout
-
-```
-src/
-  lib/
-    types.ts        domain model (devices, statuses, categories, locations, bulk items)
-    warranty.ts     warranty buckets, day countdowns and status tones
-    dates.ts        tolerant spreadsheet date parsing (ISO, US, Excel serials)
-    csv.ts          dependency-free RFC 4180 reader + separator detection
-    sun.ts          local sunrise/sunset maths, no API and no network
-    theme.ts        light-by-day / dark-by-night, with a remembered override
-    importPlan.ts   column guessing, row validation and the dry-run plan
-    deviceForm.ts   shared form values, validation and NewDeviceInput mapping
-    reference.ts    room/staff name keys, shared by the importer and the adapter
-    clock.ts        one shared "now", so no two rows disagree about today
-    useAsync.ts     small loading/error hook for adapter calls
-    useInventoryVersion.ts  subscribes screens to writes so they refetch
-    demo.ts         demo-build flag (sample data + hash routing)
-    data/
-      types.ts      the InventoryAdapter seam
-      supabaseAdapter.ts  Postgres implementation, used by the real app
-      mockAdapter.ts  browser-local implementation, used by the demo
-      seed.ts       blank fleet + categories (rooms and staff are learned)
-      demoSeed.ts   invented fleet for the public demo only
-  components/       app shell, badges, the shared device field set, placeholder pages
-  routes/           Devices, DeviceDetail, NewDevice, Import, Removed, WarrantyCliff + planned stubs
-```
+Nothing in the UI talks to a database directly. Everything goes through `InventoryAdapter` in
+`src/lib/data/types.ts`, implemented by `supabaseAdapter.ts` in production and `mockAdapter.ts` in
+the demo.
 
 ## Notes
 
-- Tailwind CSS v4 (via `@tailwindcss/vite`), React 19, React Router 7, TypeScript in strict mode.
+Tailwind CSS v4, React 19, React Router 7, TypeScript in strict mode.
