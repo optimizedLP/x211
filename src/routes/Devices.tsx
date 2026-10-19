@@ -221,13 +221,9 @@ export function Devices() {
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
+          {/* Import stays reachable from the empty state and /import itself; the
+              header keeps a single primary action. */}
           <div className="flex flex-wrap justify-end gap-2">
-            <Link
-              to="/import"
-              className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-accent/40 hover:text-accent"
-            >
-              Import
-            </Link>
             <Link
               to="/devices/new"
               className="rounded-lg border border-accent/50 bg-accent/15 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/25"
