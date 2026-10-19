@@ -173,13 +173,6 @@ export function Devices() {
     setSearchParams(new URLSearchParams(), { replace: true })
   }
 
-  const toggleStatus = (status: DeviceStatus) => {
-    const next = statuses.includes(status)
-      ? statuses.filter((item) => item !== status)
-      : [...statuses, status]
-    setParam('status', next.length ? next.join(',') : null)
-  }
-
   const toggleRetired = () => {
     const showRetired = !includeRetired
     setSearchParams(
@@ -209,7 +202,10 @@ export function Devices() {
     setSortDir('asc')
   }
 
-  const statusChips = includeRetired ? DEVICE_STATUSES : ACTIVE_STATUSES
+  // Retired states only make sense while retired records are visible, and the
+  // dropdown is single-select, matching Category and Location.
+  const statusOptions = includeRetired ? DEVICE_STATUSES : ACTIVE_STATUSES
+  const statusFilter = statuses[0] ?? ''
 
   return (
     <div className="space-y-5">
@@ -255,10 +251,19 @@ export function Devices() {
             type="search"
             value={search}
             onChange={(event) => setParam('q', event.target.value)}
-            placeholder="Try “chromebook 214”, “X211-1050”, a serial, or a staff name…"
             aria-label="Search devices"
-            className="w-full rounded-lg border border-line bg-panel-2 py-2 pr-9 pl-8 text-sm text-ink placeholder:text-muted/70 focus:border-accent/60 focus:ring-2 focus:ring-accent/20 focus:outline-none"
+            className="w-full rounded-lg border border-line bg-panel-2 py-2 pr-9 pl-8 text-sm text-ink focus:border-accent/60 focus:ring-2 focus:ring-accent/20 focus:outline-none"
           />
+          {/* A native placeholder cannot style half its text, so the hint is an
+              overlay: "Try" stays upright and the examples are italic. */}
+          {!search && (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1/2 left-8 max-w-[calc(100%-4rem)] -translate-y-1/2 truncate text-sm text-muted/70"
+            >
+              Try <em>"iPad", "asset tag", "s/n", or "room 326"...</em>
+            </span>
+          )}
           {search && (
             <button
               type="button"
@@ -269,27 +274,6 @@ export function Devices() {
               clear
             </button>
           )}
-        </div>
-
-        <div className="flex flex-wrap gap-1.5">
-          {statusChips.map((status) => {
-            const active = statuses.includes(status)
-            return (
-              <button
-                key={status}
-                type="button"
-                onClick={() => toggleStatus(status)}
-                aria-pressed={active}
-                className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
-                  active
-                    ? 'border-accent/50 bg-accent/15 font-semibold text-accent'
-                    : 'border-line bg-panel-2 text-muted hover:text-ink'
-                }`}
-              >
-                {status}
-              </button>
-            )
-          })}
         </div>
 
         <div className="flex flex-wrap items-center gap-3 text-xs">
@@ -304,6 +288,22 @@ export function Devices() {
               {(categoriesState.data ?? []).map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex items-center gap-2 text-muted">
+            Status
+            <select
+              value={statusFilter}
+              onChange={(event) => setParam('status', event.target.value)}
+              className="rounded-lg border border-line bg-panel-2 px-2 py-1.5 text-xs text-ink focus:border-accent/60 focus:outline-none"
+            >
+              <option value="">All</option>
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {status}
                 </option>
               ))}
             </select>

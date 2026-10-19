@@ -17,7 +17,7 @@ interface NavItem {
  * rare, so it lives in the quiet footer link rather than in the main menu.
  */
 const NAV: readonly NavItem[] = [
-  { to: '/', label: 'Devices' },
+  { to: '/', label: 'Home' },
   { to: '/warranty', label: 'Warranty' },
   { to: '/bulk', label: 'Other Supplies (unlabeled)' },
 ]
