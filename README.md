@@ -12,10 +12,8 @@ workflow.
 
 - Search, status/category/location filters (kept in the URL), sorting, and a warranty dashboard
   bucketed into expired / 30 / 60 / 90 days.
-- Full-record editing, a new-device form, and CSV/TSV import with column mapping, dry-run validation
-  and duplicate detection. A duplicate asset tag is skipped, never overwritten.
-- Soft delete with a **Recently removed** bin — undoable — while a device that left the school is
-  marked **Disposed** so its history survives.
+- Full-record editing, a new-device form with an optional camera/photo scan of the asset tag and
+  serial label, and CSV/TSV import with column mapping, dry-run validation and duplicate detection.
+  A duplicate asset tag is skipped, never overwritten.
 - Supabase in production (Postgres + row-level security, two access codes: an **admin** that can
   write and a **guest** that can only read); browser-local storage for the demo and offline work.
-- Light by day, dark after sunset, with a remembered override.
