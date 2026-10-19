@@ -334,7 +334,7 @@ export function Devices() {
               type="checkbox"
               checked={includeRetired}
               onChange={toggleRetired}
-              className="size-3.5 accent-[#5b8cff]"
+              className="size-3.5 accent-accent"
             />
             Include retired (obsolete / pickup / disposed)
           </label>

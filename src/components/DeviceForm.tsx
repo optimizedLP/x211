@@ -3,7 +3,7 @@ import { DEVICE_STATUSES } from '../lib/types'
 import type { DeviceFormValues } from '../lib/deviceForm'
 
 const INPUT_CLASS =
-  'mt-1 w-full rounded-lg border border-line bg-panel-2 px-2.5 py-1.5 text-sm text-ink [color-scheme:dark] placeholder:text-muted/60 focus:border-accent/60 focus:ring-2 focus:ring-accent/20 focus:outline-none'
+  'mt-1 w-full rounded-lg border border-line bg-panel-2 px-2.5 py-1.5 text-sm text-ink placeholder:text-muted/60 focus:border-accent/60 focus:ring-2 focus:ring-accent/20 focus:outline-none'
 
 interface DeviceFieldsProps {
   values: DeviceFormValues

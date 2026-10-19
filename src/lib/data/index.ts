@@ -19,8 +19,8 @@ const backend = isBackendConfigured ? createSupabaseAdapter() : createMockAdapte
 
 /**
  * A mutation counter, so screens that fetched through `useAsync` can refetch
- * after a write. The sidebar counters live outside the route being edited, so
- * without this they would keep showing the pre-change total.
+ * after a write. Screens live outside the route being edited, so without this
+ * the Warranty page or the device list would keep showing pre-change totals.
  */
 let version = 0
 const listeners = new Set<() => void>()
@@ -43,8 +43,8 @@ export function getInventoryVersion(): number {
 
 /**
  * Writes are wrapped rather than called directly, so every adapter gets the
- * same change notification for free — the sidebar counters live outside the
- * route being edited and would otherwise show the pre-change total.
+ * same change notification for free — another screen can be showing the same
+ * records and would otherwise keep the pre-change totals.
  */
 export const inventory: InventoryAdapter = {
   ...backend,

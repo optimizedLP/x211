@@ -295,7 +295,7 @@ export function WarrantyCliff() {
                       checked={allSelected}
                       onChange={toggleAll}
                       aria-label="Select all devices in this bucket"
-                      className="size-3.5 accent-[#5b8cff]"
+                      className="size-3.5 accent-accent"
                     />
                   </th>
                 )}
@@ -414,7 +414,7 @@ function CliffRow({
             checked={checked}
             onChange={onToggle}
             aria-label={`Select ${device.assetTag ?? device.serial ?? 'device'}`}
-            className="size-3.5 accent-[#5b8cff]"
+            className="size-3.5 accent-accent"
           />
         </td>
       )}

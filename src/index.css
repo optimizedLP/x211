@@ -1,17 +1,53 @@
 @import "tailwindcss";
 
-/* Palette shared with the project's local handoff notes so the app and the doc match. */
-@theme {
-  --color-bg: #0f1115;
-  --color-panel: #171a21;
-  --color-panel-2: #1d2129;
-  --color-line: #2a2f3a;
-  --color-ink: #e6e8ee;
-  --color-muted: #9aa3b2;
-  --color-accent: #5b8cff;
-  --color-accent-2: #38d39f;
-  --color-warn: #f0b429;
-  --color-bad: #f2646a;
+/*
+ * Two palettes, one set of token names. `@theme inline` makes Tailwind's
+ * utilities emit `var(--panel)` rather than a baked hex, so switching
+ * `data-theme` on <html> repaints the whole app without rebuilding classes.
+ */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+}
+
+/* Daylight palette — the default, set by the sun (see src/lib/theme.ts). */
+:root {
+  color-scheme: light;
+
+  --bg: #f4f6fb;
+  --panel: #ffffff;
+  --panel-2: #eef1f8;
+  --line: #dde2ec;
+  --ink: #12151c;
+  --muted: #5c6675;
+  --accent: #2f6bff;
+  --accent-2: #0f9d76;
+  --warn: #a86f00;
+  --bad: #cf3b44;
+}
+
+/* After sunset. */
+html[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0f1115;
+  --panel: #171a21;
+  --panel-2: #1d2129;
+  --line: #2a2f3a;
+  --ink: #e6e8ee;
+  --muted: #9aa3b2;
+  --accent: #5b8cff;
+  --accent-2: #38d39f;
+  --warn: #f0b429;
+  --bad: #f2646a;
 }
 
 html,
@@ -21,7 +57,27 @@ body,
 }
 
 body {
-  background-color: var(--color-bg);
-  color: var(--color-ink);
+  background-color: var(--bg);
+  color: var(--ink);
   -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Fade the common surfaces when the palette changes. Scoped to the utility
+ * classes actually used for surfaces, so hover states are not slowed anywhere
+ * else. Skipped entirely when the visitor asks for reduced motion.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  body,
+  .bg-bg,
+  .bg-panel,
+  .bg-panel-2,
+  .border-line,
+  .text-ink,
+  .text-muted {
+    transition:
+      background-color 320ms ease,
+      border-color 320ms ease,
+      color 320ms ease;
+  }
 }

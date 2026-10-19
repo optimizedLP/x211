@@ -1,133 +1,134 @@
 import type { ReactNode } from 'react'
-import { NavLink } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 
 import { useAuth } from '../lib/authContext'
 import { inventory, isDemoData } from '../lib/data'
-import { useInventoryVersion } from '../lib/useInventoryVersion'
-import { WARRANTY_BUCKET_LABELS } from '../lib/warranty'
-import { useAsync } from '../lib/useAsync'
+import type { ThemeMode } from '../lib/theme'
+import { useTheme } from '../lib/theme'
 
 interface NavItem {
   to: string
   label: string
-  built: boolean
-}
-
-const NAV: readonly NavItem[] = [
-  { to: '/', label: 'Devices', built: true },
-  { to: '/warranty', label: 'Warranty', built: true },
-  { to: '/bulk', label: 'Peripherals & Other Supplies (unlabeled)', built: false },
-  { to: '/removed', label: 'Recently removed', built: true },
-]
-
-function navClasses({ isActive }: { isActive: boolean }): string {
-  const base = 'flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors'
-  return isActive
-    ? `${base} border-accent/40 bg-accent/10 text-accent`
-    : `${base} border-transparent text-muted hover:bg-panel-2 hover:text-ink`
-}
-
-/** Live fleet counter — also proves the adapter's aggregate query works. */
-function FleetSummary() {
-  // Subscribe to writes so the counters follow a change made in any route.
-  const version = useInventoryVersion()
-  const summary = useAsync(() => inventory.warrantySummary(), [version])
-
-  if (!summary.data) {
-    return <p className="text-xs text-muted">Loading fleet…</p>
-  }
-
-  const out = summary.data.expired
-  const soon = summary.data.d30 + summary.data.d60 + summary.data.d90
-
-  return (
-    <div className="space-y-1 text-xs">
-      <div className="flex items-center justify-between">
-        <span className="text-muted">{WARRANTY_BUCKET_LABELS.expired}</span>
-        <span className="font-semibold text-bad">{out}</span>
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-muted">Expiring ≤ 90 days</span>
-        <span className="font-semibold text-warn">{soon}</span>
-      </div>
-    </div>
-  )
 }
 
 /**
- * Local-only actions live here. Against a real database the reset button would
- * be a live-inventory wipe, so it is replaced by Sign out instead.
+ * "Recently removed" is deliberately absent: removing a record is meant to be
+ * rare, so it lives in the quiet footer link rather than in the main menu.
  */
-function AccountFooter() {
+const NAV: readonly NavItem[] = [
+  { to: '/', label: 'Devices' },
+  { to: '/warranty', label: 'Warranty' },
+  { to: '/bulk', label: 'Other Supplies (unlabeled)' },
+]
+
+function navClasses({ isActive }: { isActive: boolean }): string {
+  const base =
+    'shrink-0 rounded-[11px] border px-3 py-1.5 text-[13px] transition-colors duration-150'
+  return isActive
+    ? `${base} border-accent/45 bg-accent/15 font-semibold text-accent`
+    : `${base} border-transparent text-muted hover:bg-panel-2 hover:text-ink`
+}
+
+/**
+ * One control, two meanings: a real session can be signed out, while the
+ * no-backend demo has no account and offers a local reset instead.
+ */
+function AccountAction() {
   const { signOut } = useAuth()
 
   const reset = async () => {
-    // With a blank starting state this deletes real records, so it asks first.
     if (!window.confirm('Delete every record stored in this browser? This cannot be undone.')) return
     await inventory.reset()
     window.location.reload()
   }
 
+  if (isDemoData) {
+    return (
+      <button
+        type="button"
+        onClick={() => void reset()}
+        className="rounded-[11px] border border-line px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-bad/50 hover:text-bad"
+      >
+        Clear all data
+      </button>
+    )
+  }
+
   return (
-    <div className="space-y-2">
-      {isDemoData ? (
-        <button
-          type="button"
-          onClick={reset}
-          className="w-full rounded-lg border border-line px-3 py-1.5 text-[11px] font-semibold text-muted transition-colors hover:border-bad/50 hover:text-bad"
-        >
-          Clear all data
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={() => void signOut()}
-          className="w-full rounded-lg border border-line px-3 py-1.5 text-[11px] font-semibold text-muted transition-colors hover:border-accent/40 hover:text-accent"
-        >
-          Sign out
-        </button>
-      )}
-    </div>
+    <button
+      type="button"
+      onClick={() => void signOut()}
+      className="rounded-[11px] border border-line px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-accent/45 hover:text-accent"
+    >
+      Sign out
+    </button>
+  )
+}
+
+const THEME_GLYPH: Record<ThemeMode, string> = { auto: '◐', light: '☀', dark: '☾' }
+
+const THEME_HINT: Record<ThemeMode, string> = {
+  auto: 'Theme: auto (follows the sun). Click for light.',
+  light: 'Theme: light. Click for dark.',
+  dark: 'Theme: dark. Click to follow the sun again.',
+}
+
+function ThemeToggle() {
+  const { mode, cycle } = useTheme()
+  return (
+    <button
+      type="button"
+      onClick={cycle}
+      aria-label={THEME_HINT[mode]}
+      title={THEME_HINT[mode]}
+      className="fixed right-[18px] bottom-[18px] z-50 grid size-[42px] place-items-center rounded-full border border-line bg-panel/85 text-[17px] leading-none text-muted shadow-lg backdrop-blur-md transition-colors hover:border-accent/45 hover:text-accent focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none"
+    >
+      <span aria-hidden="true">{THEME_GLYPH[mode]}</span>
+    </button>
   )
 }
 
 export function Layout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="shrink-0 border-b border-line bg-panel md:flex md:w-64 md:flex-col md:border-r md:border-b-0">
-        <div className="flex items-baseline gap-3 px-5 pt-5 pb-4 md:block">
-          <div className="font-mono text-lg font-bold tracking-tight text-accent">x211</div>
-          <p className="text-xs text-muted md:mt-1">School Device Inventory</p>
-        </div>
+    <div className="min-h-screen">
+      <header className="fixed inset-x-0 top-0 z-40 border-b border-line bg-panel/85 backdrop-blur-md">
+        <div className="flex h-14 items-center gap-2 px-4 md:gap-3 md:px-6">
+          <Link
+            to="/"
+            className="mr-1 shrink-0 font-mono text-lg font-bold tracking-tight text-accent"
+          >
+            x211
+          </Link>
 
-        <nav className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col md:gap-0.5 md:overflow-visible md:pb-0">
-          {NAV.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.to === '/'} className={navClasses}>
-              {({ isActive }) => (
-                <>
-                  <span className={isActive ? 'font-semibold' : ''}>{item.label}</span>
-                  {!item.built && (
-                    <span className="ml-2 rounded border border-line bg-panel-2 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-muted uppercase">
-                      soon
-                    </span>
-                  )}
-                </>
-              )}
-            </NavLink>
-          ))}
-        </nav>
+          <nav aria-label="Main" className="flex min-w-0 items-center gap-1 overflow-x-auto">
+            {NAV.map((item) => (
+              <NavLink key={item.to} to={item.to} end={item.to === '/'} className={navClasses}>
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
 
-        <div className="hidden border-t border-line px-5 py-4 md:mt-auto md:block">
-          <FleetSummary />
-          <div className="mt-4 border-t border-line pt-4">
-            <AccountFooter />
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <AccountAction />
           </div>
         </div>
-      </aside>
+      </header>
 
-      <main className="min-w-0 flex-1">
-        <div className="mx-auto max-w-6xl px-5 py-7 md:px-8">{children}</div>
-      </main>
+      <main className="mx-auto max-w-6xl px-5 pt-[76px] pb-10 md:px-8">{children}</main>
+
+      <footer className="mx-auto max-w-6xl px-5 pb-8 md:px-8">
+        <div className="border-t border-line/70 pt-3.5">
+          <Link
+            to="/removed"
+            title="Recover a record that was removed by mistake"
+            className="-ml-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11.5px] text-muted/80 transition-colors hover:bg-panel-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none"
+          >
+            <span aria-hidden="true">↺</span> Recently removed
+          </Link>
+        </div>
+      </footer>
+
+      <ThemeToggle />
     </div>
   )
 }

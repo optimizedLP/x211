@@ -65,7 +65,7 @@ device and coming back restores the same list, and a filtered view is bookmarkab
 
 Writes go through `src/lib/data/index.ts`, which wraps the adapter and bumps a shared version
 counter. Screens pass `useInventoryVersion()` into their fetch dependencies, so declaring a device
-obsolete updates the warranty dashboard and the sidebar counters together.
+obsolete updates the warranty dashboard and the device list together.
 
 ### Adding devices
 
@@ -111,7 +111,7 @@ keeps its history; the confirmation panel says so in as many words, and so does 
 
 ### Warranty counts
 
-The dashboard and sidebar count only the fleet still in play — units already Obsolete or Disposed
+The dashboard counts only the fleet still in play — units already Obsolete or Disposed
 are history. That keeps each bucket tile equal to the rows listed beneath it.
 
 ### Starting state
@@ -130,8 +130,9 @@ asset tag already exists are refused in the dry run and skipped, and nothing is 
 The dry run previews the first 30 rows and offers **Show all N rows** for the rest — every row is
 validated whether it is on screen or not.
 
-**Clear all data** in the sidebar footer empties the fleet and asks for confirmation first — it is a
-local reset, not a demo reseed.
+**Clear all data** in the top bar empties the fleet and asks for confirmation first — it is a local
+reset, not a demo reseed. It only appears when no backend is configured; with Supabase the same slot
+is **Sign out**.
 
 ## Layout
 
@@ -142,6 +143,8 @@ src/
     warranty.ts     warranty buckets, day countdowns and status tones
     dates.ts        tolerant spreadsheet date parsing (ISO, US, Excel serials)
     csv.ts          dependency-free RFC 4180 reader + separator detection
+    sun.ts          local sunrise/sunset maths, no API and no network
+    theme.ts        light-by-day / dark-by-night, with a remembered override
     importPlan.ts   column guessing, row validation and the dry-run plan
     deviceForm.ts   shared form values, validation and NewDeviceInput mapping
     reference.ts    room/staff name keys, shared by the importer and the adapter
@@ -165,4 +168,9 @@ src/
 ## Notes
 
 - Tailwind CSS v4 (via `@tailwindcss/vite`), React 19, React Router 7, TypeScript in strict mode.
-- The colour palette is defined once in `src/index.css` and shared with the project's local handoff notes.
+- The colour palette is defined once in `src/index.css`: light is the `:root` default, dark overrides
+  under `html[data-theme='dark']`. `src/lib/theme.ts` sets that attribute from the sun, rechecking
+  every 30 seconds; the glyph button in the bottom-right corner cycles auto → light → dark and the
+  choice is remembered in `localStorage`.
+- The top bar is full width and fixed, and carries the only navigation. "Recently removed" sits in a
+  quiet footer link under the page content rather than in the menu.

@@ -199,7 +199,7 @@ export function ImportPage() {
             {sourceName || 'the pasted sheet'}.
           </p>
           <p className="mt-1 text-xs text-muted">
-            They are in the fleet now — the sidebar counts and the Warranty page already include them.
+            They are in the fleet now — the device list and the Warranty page already include them.
           </p>
           {(newLocations.length > 0 || newStaff.length > 0) && (
             <p className="mt-2 text-xs text-muted">
@@ -319,7 +319,7 @@ export function ImportPage() {
                 type="checkbox"
                 checked={hasHeaderRow}
                 onChange={(event) => setHasHeaderRow(event.target.checked)}
-                className="size-3.5 accent-[#5b8cff]"
+                className="size-3.5 accent-accent"
               />
               The first row is a header row
             </label>
@@ -372,7 +372,7 @@ export function ImportPage() {
               type="checkbox"
               checked={hasHeaderRow}
               onChange={(event) => changeHeaderRow(event.target.checked)}
-              className="size-3.5 accent-[#5b8cff]"
+              className="size-3.5 accent-accent"
             />
             First row is a header
           </label>
