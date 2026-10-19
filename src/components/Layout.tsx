@@ -118,7 +118,7 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-5 pt-[76px] pb-10 md:px-8">
+      <main className="mx-auto max-w-6xl px-5 pt-[76px] pb-12 md:px-8">
         {isDemoBuild && (
           <div className="mb-4 flex flex-wrap items-baseline gap-x-2 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-xs">
             <strong className="font-semibold text-accent">Demo</strong>
@@ -130,18 +130,6 @@ export function Layout({ children }: { children: ReactNode }) {
         )}
         {children}
       </main>
-
-      <footer className="mx-auto max-w-6xl px-5 pb-8 md:px-8">
-        <div className="border-t border-line/70 pt-3.5">
-          <Link
-            to="/removed"
-            title="Recover a record that was removed by mistake"
-            className="-ml-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11.5px] text-muted/80 transition-colors hover:bg-panel-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none"
-          >
-            <span aria-hidden="true">↺</span> Recently removed
-          </Link>
-        </div>
-      </footer>
 
       <ThemeToggle />
     </div>

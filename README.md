@@ -201,4 +201,5 @@ src/
   every 30 seconds; the glyph button in the bottom-right corner cycles auto → light → dark and the
   choice is remembered in `localStorage`.
 - The top bar is full width and fixed, and carries the only navigation. "Recently removed" sits in a
-  quiet footer link under the page content rather than in the menu.
+  quiet link under the device list — only on the Devices page, since the bin is an undo for records
+  rather than a destination of its own.

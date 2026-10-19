@@ -435,6 +435,21 @@ export function Devices() {
           </div>
         )}
       </div>
+
+      {/*
+       * Only the device list offers the bin. It is deliberately quiet and sits
+       * after the table, because removing a record is a rare undo, not a
+       * destination — and it makes no sense on the warranty or supplies pages.
+       */}
+      <div className="border-t border-line/70 pt-3.5">
+        <Link
+          to="/removed"
+          title="Recover a record that was removed by mistake"
+          className="-ml-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11.5px] text-muted/80 transition-colors hover:bg-panel-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none"
+        >
+          <span aria-hidden="true">↺</span> Recently removed
+        </Link>
+      </div>
     </div>
   )
 }
