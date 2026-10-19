@@ -1,19 +1,46 @@
 import { useState } from 'react'
 
-import { ACCESS_EMAIL, getSupabase } from '../lib/supabase'
+import type { Role } from '../lib/authContext'
+import { ACCESS_EMAIL, GUEST_EMAIL, getSupabase } from '../lib/supabase'
+
+const ROLE_KEY = 'x211:login-role'
+
+/** Remembers the last door used, so staff tap "guest" once on their machine. */
+function storedRole(): Role {
+  try {
+    return localStorage.getItem(ROLE_KEY) === 'guest' ? 'guest' : 'admin'
+  } catch {
+    return 'admin'
+  }
+}
 
 /**
- * One field, one code.
+ * One field, two accounts.
  *
- * The email behind it is a fixed internal address that nobody types; the code
- * people enter is that account's password. Supabase Auth enforces it server
- * side, so an anonymous visitor cannot read the inventory even holding the
- * public key.
+ * The emails behind the switch are fixed internal addresses nobody types; the
+ * code people enter is that account's password. Which account is chosen here
+ * only picks the door to try — what the account may do is decided by its role
+ * in `profiles`, and enforced by row-level security.
  */
 export function Login() {
+  const [role, setRole] = useState<Role>(storedRole)
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  const choose = (next: Role) => {
+    if (next === role) return
+    setRole(next)
+    // A code belongs to one account; carrying it across would look like a
+    // rejected code on the other side.
+    setCode('')
+    setError(null)
+    try {
+      localStorage.setItem(ROLE_KEY, next)
+    } catch {
+      // Storage can be unavailable (private mode); the switch still works.
+    }
+  }
 
   const submit = async () => {
     if (busy || code.trim() === '') return
@@ -21,15 +48,15 @@ export function Login() {
     setError(null)
     try {
       const { error: signInError } = await getSupabase().auth.signInWithPassword({
-        email: ACCESS_EMAIL,
+        email: role === 'admin' ? ACCESS_EMAIL : GUEST_EMAIL,
         password: code,
       })
       if (signInError) {
         const message = signInError.message
         setError(
           /invalid login credentials/i.test(message)
-            ? 'That code was not recognised. Check the code, and that the shared ' +
-              'account exists and is confirmed in Supabase → Authentication → Users.'
+            ? 'That code was not recognised. Check the code, and that this account exists ' +
+              'and is confirmed in Supabase → Authentication → Users.'
             : /email not confirmed/i.test(message)
               ? 'That account is not confirmed yet. In Supabase → Authentication → Users, ' +
                 'confirm it (or recreate it with “Auto Confirm User” ticked).'
@@ -60,6 +87,33 @@ export function Login() {
           }}
           className="rounded-xl border border-line bg-panel p-6"
         >
+          <div
+            role="group"
+            aria-label="Account"
+            className="mb-4 grid grid-cols-2 gap-1 rounded-lg border border-line bg-panel-2 p-1"
+          >
+            {(['admin', 'guest'] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => choose(option)}
+                aria-pressed={role === option}
+                title={
+                  option === 'admin'
+                    ? 'Add, edit, import and remove devices'
+                    : 'Browse the inventory without changing it'
+                }
+                className={`rounded-md px-3 py-1.5 text-xs transition-colors ${
+                  role === option
+                    ? 'border border-accent/45 bg-accent/15 font-semibold text-accent'
+                    : 'border border-transparent font-medium text-muted hover:text-ink'
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+
           <label className="block">
             <span className="text-xs font-semibold text-ink">access code</span>
             <input

@@ -34,12 +34,17 @@ export function getSupabase() {
 }
 
 /**
- * The single shared account. Nobody types this address — it is the hidden
- * identifier behind the one field people do type: the access code, which is
- * just this user's password.
+ * The two accounts behind the two access codes. Nobody types these addresses —
+ * they are the hidden identifiers behind the one field people do type: the
+ * access code, which is just that account's password.
  *
- * Kept in an env var rather than in source: it is not a secret (it ships in the
+ * `ACCESS_EMAIL` is admin (may write); `GUEST_EMAIL` is the shared read-only
+ * account. The role itself is not decided here: it comes from `profiles` and is
+ * enforced by row-level security.
+ *
+ * Kept in env vars rather than in source: they are not secrets (they ship in the
  * bundle, like any email-auth client), but there is no reason for a real
  * address to sit in a public repo.
  */
 export const ACCESS_EMAIL = import.meta.env.VITE_ACCESS_EMAIL || 'access@x211.local'
+export const GUEST_EMAIL = import.meta.env.VITE_GUEST_EMAIL || 'guest@x211.local'

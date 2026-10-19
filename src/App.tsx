@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { BrowserRouter, HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import { Layout } from './components/Layout'
@@ -18,6 +19,15 @@ import { WarrantyCliff } from './routes/WarrantyCliff'
  * `Layout` can fetch data while signed out, so no screen can leak a query the
  * policies would refuse anyway.
  */
+/**
+ * Screens that write are admin-only. A guest who bookmarks one lands back on
+ * the list instead of meeting a control the database would refuse.
+ */
+function AdminOnly({ children }: { children: ReactNode }) {
+  const { isAdmin } = useAuth()
+  return isAdmin ? children : <Navigate to="/" replace />
+}
+
 function Shell() {
   const { status } = useAuth()
 
@@ -31,10 +41,24 @@ function Shell() {
     <Layout>
       <Routes>
         <Route path="/" element={<Devices />} />
-        <Route path="/devices/new" element={<NewDevice />} />
+        <Route
+          path="/devices/new"
+          element={
+            <AdminOnly>
+              <NewDevice />
+            </AdminOnly>
+          }
+        />
         <Route path="/devices/:id" element={<DeviceDetail />} />
         <Route path="/warranty" element={<WarrantyCliff />} />
-        <Route path="/removed" element={<Removed />} />
+        <Route
+          path="/removed"
+          element={
+            <AdminOnly>
+              <Removed />
+            </AdminOnly>
+          }
+        />
         <Route
           path="/bulk"
           element={
@@ -49,7 +73,14 @@ function Shell() {
             />
           }
         />
-        <Route path="/import" element={<ImportPage />} />
+        <Route
+          path="/import"
+          element={
+            <AdminOnly>
+              <ImportPage />
+            </AdminOnly>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

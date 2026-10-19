@@ -9,8 +9,10 @@
 --   * A removed device keeps its asset tag, so restoring it can never collide
 --     with a tag imported in the meantime — the unique index covers deleted
 --     rows too.
---   * RLS is on for every table. Only signed-in users (the shared access code)
---     can read or write; the publishable key on its own gets nothing.
+--   * RLS is on for every table. Signed-in admins can read and write, guests
+--     can only read; the publishable key on its own gets nothing.
+--   * The role lives in `profiles`, not in user metadata: people can edit their
+--     own metadata, which would let a guest promote themselves.
 
 -- ---------------------------------------------------------------- categories
 create table if not exists categories (
@@ -117,31 +119,90 @@ create trigger devices_touch_updated_at
   before update on devices
   for each row execute function set_updated_at();
 
+-- ------------------------------------------------------------------ profiles
+-- One row per login. A missing row means guest, so a newly created account is
+-- read-only until someone assigns it a role here.
+create table if not exists profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  role    text not null default 'guest' check (role in ('admin', 'guest'))
+);
+
 -- ------------------------------------------------------------------- access
--- Row-level security: signed-in users get full access (one shared code means
--- one trusted role), anonymous requests get nothing at all.
+-- Two kinds of account: admin (adds, edits, removes) and guest (reads only).
+-- Anonymous requests get nothing at all.
 alter table categories enable row level security;
 alter table locations  enable row level security;
 alter table staff      enable row level security;
 alter table devices    enable row level security;
 alter table bulk_items enable row level security;
+alter table profiles   enable row level security;
+
+-- security definer so the check can read profiles for the caller; the empty
+-- search_path keeps it from resolving anything the caller controls.
+create or replace function public.is_admin() returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.profiles
+    where user_id = auth.uid() and role = 'admin'
+  );
+$$;
+
+revoke all on function public.is_admin() from public;
+grant execute on function public.is_admin() to authenticated;
+
+-- Every table: any signed-in account may read, only an admin may write. The
+-- admin policy is `for all` rather than four near-identical policies; the read
+-- policy is ORed alongside it, so guests still see every row.
 
 drop policy if exists authenticated_all on categories;
-create policy authenticated_all on categories for all to authenticated using (true) with check (true);
+drop policy if exists authenticated_read on categories;
+drop policy if exists admin_write on categories;
+create policy authenticated_read on categories for select to authenticated using (true);
+create policy admin_write on categories for all to authenticated
+  using (public.is_admin()) with check (public.is_admin());
 
 drop policy if exists authenticated_all on locations;
-create policy authenticated_all on locations for all to authenticated using (true) with check (true);
+drop policy if exists authenticated_read on locations;
+drop policy if exists admin_write on locations;
+create policy authenticated_read on locations for select to authenticated using (true);
+create policy admin_write on locations for all to authenticated
+  using (public.is_admin()) with check (public.is_admin());
 
 drop policy if exists authenticated_all on staff;
-create policy authenticated_all on staff for all to authenticated using (true) with check (true);
+drop policy if exists authenticated_read on staff;
+drop policy if exists admin_write on staff;
+create policy authenticated_read on staff for select to authenticated using (true);
+create policy admin_write on staff for all to authenticated
+  using (public.is_admin()) with check (public.is_admin());
 
 drop policy if exists authenticated_all on devices;
-create policy authenticated_all on devices for all to authenticated using (true) with check (true);
+drop policy if exists authenticated_read on devices;
+drop policy if exists admin_write on devices;
+create policy authenticated_read on devices for select to authenticated using (true);
+create policy admin_write on devices for all to authenticated
+  using (public.is_admin()) with check (public.is_admin());
 
 drop policy if exists authenticated_all on bulk_items;
-create policy authenticated_all on bulk_items for all to authenticated using (true) with check (true);
+drop policy if exists authenticated_read on bulk_items;
+drop policy if exists admin_write on bulk_items;
+create policy authenticated_read on bulk_items for select to authenticated using (true);
+create policy admin_write on bulk_items for all to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+
+-- The app reads only its own role, and nothing in the browser may change one:
+-- roles are assigned here in the SQL editor. With no write policy, RLS already
+-- refuses; the missing grants make that explicit.
+drop policy if exists profiles_read_own on profiles;
+create policy profiles_read_own on profiles for select to authenticated
+  using (user_id = auth.uid());
 
 -- The browser only ever uses the publishable (anon) key, and that key must not
 -- reach the tables directly: the app signs in first.
 revoke all on all tables in schema public from anon;
 grant select, insert, update, delete on all tables in schema public to authenticated;
+revoke insert, update, delete on profiles from authenticated;

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { StatusBadge, WarrantyBadge } from '../components/Badge'
+import { useAuth } from '../lib/authContext'
 import { NOW } from '../lib/clock'
 import type { DeviceQuery } from '../lib/data'
 import { inventory } from '../lib/data'
@@ -102,6 +103,7 @@ export function Devices() {
   const includeRetired = searchParams.get('retired') === '1'
 
   const navigate = useNavigate()
+  const { isAdmin } = useAuth()
 
   /** Replace rather than push, so the back button does not walk keystroke by keystroke. */
   const setParam = (key: string, value: string | null) => {
@@ -219,14 +221,16 @@ export function Devices() {
         <div className="flex flex-col items-end gap-2">
           {/* Import stays reachable from the empty state and /import itself; the
               header keeps a single primary action. */}
-          <div className="flex flex-wrap justify-end gap-2">
-            <Link
-              to="/devices/new"
-              className="rounded-lg border border-accent/50 bg-accent/15 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/25"
-            >
-              + New device
-            </Link>
-          </div>
+          {isAdmin && (
+            <div className="flex flex-wrap justify-end gap-2">
+              <Link
+                to="/devices/new"
+                className="rounded-lg border border-accent/50 bg-accent/15 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/25"
+              >
+                + New device
+              </Link>
+            </div>
+          )}
           <div className="text-right">
             <div className="text-2xl font-semibold tabular-nums">{rows.length}</div>
             <div className="text-xs text-muted">
@@ -392,22 +396,26 @@ export function Devices() {
               <>
                 <p className="text-sm text-ink">No devices yet.</p>
                 <p className="mt-1 text-xs text-muted">
-                  Add one by hand, or bring the spreadsheet you already keep in through the importer.
+                  {isAdmin
+                    ? 'Add one by hand, or bring the spreadsheet you already keep in through the importer.'
+                    : 'An admin adds and imports devices. This account can browse what is here.'}
                 </p>
-                <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  <Link
-                    to="/import"
-                    className="rounded-lg border border-accent/50 bg-accent/15 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/25"
-                  >
-                    Import a CSV
-                  </Link>
-                  <Link
-                    to="/devices/new"
-                    className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-accent/40 hover:text-accent"
-                  >
-                    + New device
-                  </Link>
-                </div>
+                {isAdmin && (
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    <Link
+                      to="/import"
+                      className="rounded-lg border border-accent/50 bg-accent/15 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/25"
+                    >
+                      Import a CSV
+                    </Link>
+                    <Link
+                      to="/devices/new"
+                      className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-accent/40 hover:text-accent"
+                    >
+                      + New device
+                    </Link>
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -433,19 +441,22 @@ export function Devices() {
       </div>
 
       {/*
-       * Only the device list offers the bin. It is deliberately quiet and sits
-       * after the table, because removing a record is a rare undo, not a
-       * destination — and it makes no sense on the warranty or supplies pages.
+       * Only the device list offers the bin, and only to an admin: it restores
+       * and erases records. It is deliberately quiet and sits after the table,
+       * because removing a record is a rare undo, not a destination — and it
+       * makes no sense on the warranty or supplies pages.
        */}
-      <div className="border-t border-line/70 pt-3.5">
-        <Link
-          to="/removed"
-          title="Recover a record that was removed by mistake"
-          className="-ml-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11.5px] text-muted/80 transition-colors hover:bg-panel-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none"
-        >
-          <span aria-hidden="true">↺</span> Recently removed
-        </Link>
-      </div>
+      {isAdmin && (
+        <div className="border-t border-line/70 pt-3.5">
+          <Link
+            to="/removed"
+            title="Recover a record that was removed by mistake"
+            className="-ml-2 inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11.5px] text-muted/80 transition-colors hover:bg-panel-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:outline-none"
+          >
+            <span aria-hidden="true">↺</span> Recently removed
+          </Link>
+        </div>
+      )}
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { StatusBadge, WarrantyBadge } from '../components/Badge'
+import { useAuth } from '../lib/authContext'
 import { NOW } from '../lib/clock'
 import { inventory } from '../lib/data'
 import type { Category, Device, DeviceStatus, Location, Tone } from '../lib/types'
@@ -72,6 +73,7 @@ function BucketTile({
 }
 
 export function WarrantyCliff() {
+  const { isAdmin } = useAuth()
   const [bucket, setBucket] = useState<WarrantyBucket>('expired')
   const [selected, setSelected] = useState<readonly string[]>([])
   const [busy, setBusy] = useState(false)
@@ -112,7 +114,10 @@ export function WarrantyCliff() {
     })
   }, [devicesState.data, now])
 
-  const canDeclare = bucket === 'expired'
+  const expiredBucket = bucket === 'expired'
+  // Declaring obsolete is a write, so the selection column and its actions
+  // exist only for an admin. The bucket itself stays readable for everyone.
+  const canDeclare = expiredBucket && isAdmin
   const selectedSet = useMemo(() => new Set(selected), [selected])
   const selectedDevices = useMemo(
     () => rows.filter((device) => selectedSet.has(device.id)),
@@ -247,7 +252,7 @@ export function WarrantyCliff() {
             <h2 className="text-lg font-semibold tracking-tight">{WARRANTY_BUCKET_LABELS[bucket]}</h2>
             <span className="text-sm text-muted tabular-nums">{shownCount} devices</span>
           </div>
-          {!canDeclare && bucket !== 'unknown' && (
+          {!expiredBucket && bucket !== 'unknown' && (
             <p className="text-xs text-muted">
               Still inside warranty — nothing to declare obsolete yet.
             </p>

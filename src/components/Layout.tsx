@@ -93,6 +93,8 @@ function ThemeToggle() {
 }
 
 export function Layout({ children }: { children: ReactNode }) {
+  const { role } = useAuth()
+
   return (
     <div className="min-h-screen">
       <header className="fixed inset-x-0 top-0 z-40 border-b border-line bg-panel/85 backdrop-blur-md">
@@ -113,6 +115,14 @@ export function Layout({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
+            {role === 'guest' && (
+              <span
+                title="This account can browse the inventory but cannot change it."
+                className="rounded-full border border-line bg-panel-2 px-2.5 py-1 text-[11px] font-semibold text-muted"
+              >
+                view only
+              </span>
+            )}
             <AccountAction />
           </div>
         </div>

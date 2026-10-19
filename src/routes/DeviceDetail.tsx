@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { StatusBadge, WarrantyBadge } from '../components/Badge'
 import { DeviceFields } from '../components/DeviceForm'
+import { useAuth } from '../lib/authContext'
 import { NOW } from '../lib/clock'
 import { deviceToFormValues, formValuesToInput, validateDeviceForm } from '../lib/deviceForm'
 import type { DeviceFormValues } from '../lib/deviceForm'
@@ -38,6 +39,7 @@ export function DeviceDetail() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
+  const { isAdmin } = useAuth()
 
   // One shared "today", same as every other screen.
   const now = NOW
@@ -205,49 +207,50 @@ export function DeviceDetail() {
           </p>
         </div>
 
-        {device.deletedAt ? (
-          !editing && (
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={startEditing}
-                className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/20"
-              >
-                Edit details
-              </button>
-              <button
-                type="button"
-                onClick={restore}
-                className="rounded-lg border border-accent-2/40 bg-accent-2/10 px-3 py-1.5 text-xs font-semibold text-accent-2 transition-colors hover:bg-accent-2/20"
-              >
-                Restore record
-              </button>
-            </div>
-          )
-        ) : (
-          !editing && (
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={startEditing}
-                className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/20"
-              >
-                Edit details
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setRemoving(true)
-                  setConfirmText('')
-                  setRemoveError(null)
-                }}
-                className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-bad/50 hover:text-bad"
-              >
-                Remove
-              </button>
-            </div>
-          )
-        )}
+        {isAdmin &&
+          (device.deletedAt ? (
+            !editing && (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={startEditing}
+                  className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/20"
+                >
+                  Edit details
+                </button>
+                <button
+                  type="button"
+                  onClick={restore}
+                  className="rounded-lg border border-accent-2/40 bg-accent-2/10 px-3 py-1.5 text-xs font-semibold text-accent-2 transition-colors hover:bg-accent-2/20"
+                >
+                  Restore record
+                </button>
+              </div>
+            )
+          ) : (
+            !editing && (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={startEditing}
+                  className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/20"
+                >
+                  Edit details
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRemoving(true)
+                    setConfirmText('')
+                    setRemoveError(null)
+                  }}
+                  className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-bad/50 hover:text-bad"
+                >
+                  Remove
+                </button>
+              </div>
+            )
+          ))}
       </div>
 
       {saveError && (
@@ -266,13 +269,19 @@ export function DeviceDetail() {
         <div className="rounded-xl border border-warn/40 bg-warn/10 p-4 text-sm">
           <p className="font-semibold text-warn">This record is removed</p>
           <p className="mt-1 text-xs leading-relaxed text-muted">
-            It is out of the device list and the Warranty page, but nothing was erased. Restore it
-            here, or from <strong>Recently removed</strong>.
+            It is out of the device list and the Warranty page, but nothing was erased.{' '}
+            {isAdmin ? (
+              <>
+                Restore it here, or from <strong>Recently removed</strong>.
+              </>
+            ) : (
+              'An admin can restore it.'
+            )}
           </p>
         </div>
       )}
 
-      {removing && !device.deletedAt && (
+      {isAdmin && removing && !device.deletedAt && (
         <div className="space-y-3 rounded-xl border border-bad/40 bg-bad/10 p-4">
           <p className="text-sm font-semibold text-bad">Remove {confirmPhrase}?</p>
           <p className="text-xs leading-relaxed text-muted">
@@ -319,7 +328,7 @@ export function DeviceDetail() {
         </div>
       )}
 
-      {!editing && !device.deletedAt && missing.length > 0 && (
+      {isAdmin && !editing && !device.deletedAt && missing.length > 0 && (
         <div className="rounded-xl border border-warn/40 bg-warn/10 p-4 text-sm">
           <p className="font-semibold text-warn">
             Missing {missing.length === 1 ? missing[0] : `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}`}
@@ -338,7 +347,7 @@ export function DeviceDetail() {
         </div>
       )}
 
-      {editing && form ? (
+      {isAdmin && editing && form ? (
         <form
           onSubmit={(event) => {
             event.preventDefault()
