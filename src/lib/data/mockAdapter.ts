@@ -3,7 +3,9 @@ import type { BulkItem, Category, Device, InventorySnapshot, Location, Staff } f
 import { isRetired } from '../types'
 import type { WarrantyBucket } from '../warranty'
 import { WARRANTY_BUCKETS, warrantyBucket } from '../warranty'
+import { isDemoBuild } from '../demo'
 import { nameKey, roomKey } from '../reference'
+import { createDemoSnapshot } from './demoSeed'
 import { createSeedSnapshot } from './seed'
 import type { DeviceQuery, ImportOutcome, InventoryAdapter, NewDeviceInput } from './types'
 
@@ -23,8 +25,13 @@ import type { DeviceQuery, ImportOutcome, InventoryAdapter, NewDeviceInput } fro
  * people, so the key moves once more. v2 only ever held demo/test rows.
  */
 
-const STORAGE_KEY = 'x211:inventory:v3'
+// The demo uses its own key so a showcase visit can never mix with whatever a
+// developer has in the same browser on localhost.
+const STORAGE_KEY = isDemoBuild ? 'x211:demo:v1' : 'x211:inventory:v3'
 const LATENCY_MS = 60
+
+/** Demo builds open on an invented fleet; the real app opens blank. */
+const initialSnapshot = isDemoBuild ? createDemoSnapshot : createSeedSnapshot
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -76,7 +83,7 @@ function load(): InventorySnapshot {
   } catch {
     // Corrupt or unreadable payload — fall through and re-seed.
   }
-  const seeded = createSeedSnapshot()
+  const seeded = initialSnapshot()
   persist(seeded)
   return seeded
 }
@@ -436,7 +443,7 @@ export function createMockAdapter(): InventoryAdapter {
 
     async reset(): Promise<void> {
       await delay(LATENCY_MS)
-      snapshot = createSeedSnapshot()
+      snapshot = initialSnapshot()
       persist(snapshot)
     },
   }

@@ -1,0 +1,59 @@
+name: Deploy demo to GitHub Pages
+
+# Publishes the sample-data showcase only. The real app is deployed by Vercel
+# from the same commit; this workflow never touches it.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer commit supersedes an in-flight run.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build the demo (sample data, no backend)
+        run: npm run build:demo
+
+      - name: Refuse to publish backend credentials
+        run: |
+          if grep -rnE 'supabase\.co|sb_publishable_' dist; then
+            echo "::error::The demo bundle contains Supabase credentials. Refusing to publish."
+            exit 1
+          fi
+          echo "Bundle is clean of backend credentials."
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

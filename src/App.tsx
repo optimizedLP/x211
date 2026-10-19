@@ -1,9 +1,10 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import { Layout } from './components/Layout'
 import { Placeholder } from './components/Placeholder'
 import { AuthProvider } from './lib/auth'
 import { useAuth } from './lib/authContext'
+import { isDemoBuild } from './lib/demo'
 import { DeviceDetail } from './routes/DeviceDetail'
 import { Devices } from './routes/Devices'
 import { ImportPage } from './routes/Import'
@@ -55,12 +56,19 @@ function Shell() {
   )
 }
 
+/**
+ * GitHub Pages cannot rewrite unknown paths to `index.html`, so deep links on
+ * the public demo would 404 on refresh. Hash routes (`/#/devices/abc`) work
+ * everywhere with no server help; the real app keeps clean URLs on Vercel.
+ */
+const Router = isDemoBuild ? HashRouter : BrowserRouter
+
 export default function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <AuthProvider>
         <Shell />
       </AuthProvider>
-    </BrowserRouter>
+    </Router>
   )
 }

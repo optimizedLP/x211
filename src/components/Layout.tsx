@@ -3,6 +3,7 @@ import { Link, NavLink } from 'react-router-dom'
 
 import { useAuth } from '../lib/authContext'
 import { inventory, isDemoData } from '../lib/data'
+import { isDemoBuild } from '../lib/demo'
 import type { ThemeMode } from '../lib/theme'
 import { useTheme } from '../lib/theme'
 
@@ -37,7 +38,10 @@ function AccountAction() {
   const { signOut } = useAuth()
 
   const reset = async () => {
-    if (!window.confirm('Delete every record stored in this browser? This cannot be undone.')) return
+    const question = isDemoBuild
+      ? 'Reset the demo to its sample fleet? Edits made in this browser will be lost.'
+      : 'Delete every record stored in this browser? This cannot be undone.'
+    if (!window.confirm(question)) return
     await inventory.reset()
     window.location.reload()
   }
@@ -49,7 +53,7 @@ function AccountAction() {
         onClick={() => void reset()}
         className="rounded-[11px] border border-line px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-bad/50 hover:text-bad"
       >
-        Clear all data
+        {isDemoBuild ? 'Reset demo data' : 'Clear all data'}
       </button>
     )
   }
@@ -114,7 +118,18 @@ export function Layout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-5 pt-[76px] pb-10 md:px-8">{children}</main>
+      <main className="mx-auto max-w-6xl px-5 pt-[76px] pb-10 md:px-8">
+        {isDemoBuild && (
+          <div className="mb-4 flex flex-wrap items-baseline gap-x-2 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-xs">
+            <strong className="font-semibold text-accent">Demo</strong>
+            <span className="text-muted">
+              Sample data only — every device, room and person here is invented. Edits stay in this
+              browser.
+            </span>
+          </div>
+        )}
+        {children}
+      </main>
 
       <footer className="mx-auto max-w-6xl px-5 pb-8 md:px-8">
         <div className="border-t border-line/70 pt-3.5">

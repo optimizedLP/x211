@@ -3,6 +3,16 @@
 A website to track every device at a NYC public school — laptops, Chromebooks, iPads, monitors,
 printers, chargers, peripherals — with warranty tracking and an obsolete/disposal workflow.
 
+## Live
+
+| | |
+|---|---|
+| App (access code required) | https://x211-nyc.vercel.app |
+| Public demo (sample data) | https://optimizedlp.github.io/x211/ |
+
+The demo is a separate build of this same code: invented devices, browser-local storage, no sign-in
+and no backend credentials. See [Public demo](#public-demo-github-pages).
+
 ## Status
 
 **Frontend spine, warranty dashboard, device detail/editing and data entry, running on browser-local data.** No backend yet, by design — and no demo rows: the fleet starts empty and is filled by hand or by CSV import.
@@ -17,10 +27,28 @@ printers, chargers, peripherals — with warranty tracking and an obsolete/dispo
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm run build    # typecheck + production build
+npm run dev         # http://localhost:5173
+npm run build       # typecheck + production build (real app, Vercel)
+npm run build:demo  # typecheck + sample-data build for GitHub Pages
 npm run lint
 ```
+
+## Public demo (GitHub Pages)
+
+The showcase at https://optimizedlp.github.io/x211/ is built by `npm run build:demo`, which differs
+from the real build in exactly four ways:
+
+- **Invented data.** `src/lib/data/demoSeed.ts` supplies 44 fictional devices, ten rooms and seven
+  people, with dates generated relative to the day the page loads. The real app still starts empty.
+- **No backend.** `vite.config.ts` blanks `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` in
+  demo builds, so the browser-local adapter takes over and no credential can reach a public bundle.
+  The Pages workflow fails the build if `dist` ever contains `supabase.co` or a publishable key.
+- **Own storage key.** Demo data lives under `x211:demo:v1`, never mixed with local development data.
+- **Hash routing.** Pages cannot rewrite unknown paths, so the demo uses `/#/devices/abc`; the real
+  app keeps clean URLs. `base` is `/x211/` for Pages and `/` for Vercel.
+
+`.github/workflows/pages.yml` builds and deploys on every push to `main`. One-time setup: repository
+**Settings → Pages → Source: GitHub Actions**.
 
 ## Frontend first, backend later
 
