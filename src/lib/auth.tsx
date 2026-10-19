@@ -49,10 +49,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .maybeSingle()
 
       if (cancelled || run !== latest) return
+      const stored = (data as { role?: string } | null)?.role
       if (error) {
         console.warn('Could not read this account’s role; treating it as guest.', error)
+      } else if (!stored) {
+        // The usual reason an admin looks read-only: no row in public.profiles.
+        console.warn(
+          `No profile row for ${session.user.email ?? session.user.id}; treating as guest. ` +
+            'Assign a role in public.profiles.',
+        )
       }
-      const stored = (data as { role?: string } | null)?.role
       setRole(!error && stored === 'admin' ? 'admin' : 'guest')
       setStatus('signed-in')
     }

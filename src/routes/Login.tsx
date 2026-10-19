@@ -55,8 +55,7 @@ export function Login() {
         const message = signInError.message
         setError(
           /invalid login credentials/i.test(message)
-            ? 'That code was not recognised. Check the code, and that this account exists ' +
-              'and is confirmed in Supabase → Authentication → Users.'
+            ? 'That code was not recognised.'
             : /email not confirmed/i.test(message)
               ? 'That account is not confirmed yet. In Supabase → Authentication → Users, ' +
                 'confirm it (or recreate it with “Auto Confirm User” ticked).'
@@ -90,7 +89,7 @@ export function Login() {
           <div
             role="group"
             aria-label="Account"
-            className="mb-4 grid grid-cols-2 gap-1 rounded-lg border border-line bg-panel-2 p-1"
+            className="mx-auto mb-4 flex w-fit gap-1 rounded-lg border border-line bg-panel-2 p-1"
           >
             {(['admin', 'guest'] as const).map((option) => (
               <button
