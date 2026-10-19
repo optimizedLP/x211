@@ -61,14 +61,13 @@ export function Login() {
           className="rounded-xl border border-line bg-panel p-6"
         >
           <label className="block">
-            <span className="text-xs font-semibold text-ink">Access code</span>
+            <span className="text-xs font-semibold text-ink">access code</span>
             <input
               type="password"
               value={code}
               onChange={(event) => setCode(event.target.value)}
               autoFocus
               autoComplete="current-password"
-              placeholder="Ask the IT office for the code"
               className="mt-2 w-full rounded-lg border border-line bg-panel-2 px-3 py-2 text-sm text-ink placeholder:text-muted/60 focus:border-accent/60 focus:ring-2 focus:ring-accent/20 focus:outline-none"
             />
           </label>
@@ -84,12 +83,8 @@ export function Login() {
             disabled={busy || code.trim() === ''}
             className="mt-4 w-full rounded-lg border border-accent/50 bg-accent/15 px-3 py-2 text-sm font-semibold text-accent transition-colors hover:bg-accent/25 disabled:opacity-40"
           >
-            {busy ? 'Checking…' : 'Unlock'}
+            {busy ? 'Checking…' : 'Authenticate'}
           </button>
-
-          <p className="mt-3 text-center text-[11px] text-muted">
-            Typed once per device — the browser stays signed in.
-          </p>
         </form>
       </div>
     </div>
