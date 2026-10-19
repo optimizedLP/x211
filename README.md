@@ -19,10 +19,3 @@ workflow.
 - Supabase in production (Postgres + row-level security, one shared access code); browser-local
   storage for the demo and offline work.
 - Light by day, dark after sunset, with a remembered override.
-
-<details>
-<summary>Dark mode</summary>
-
-![The device list after sunset](docs/demo-dark.png)
-
-</details>
