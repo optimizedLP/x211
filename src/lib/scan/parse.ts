@@ -55,11 +55,15 @@ const DOE_TAG = /\bDOE-LN[O0-9ILSBZ]{7}\b/
 const HYPHENATED_TAG = /\b[A-Z]{2,5}-[A-Z0-9]{4,20}\b/g
 
 /**
- * The serial's field label. DOE labels print it three ways depending on the
- * batch: `S/N`, `SERIAL #` and `SERIAL NUMBER`. The `SIN` form is what OCR
- * sometimes makes of `S/N`, so it has to be accepted too.
+ * The serial's field label. DOE labels print it several ways depending on the
+ * batch: `S/N`, `SERIAL #`, `SERIAL NUMBER`, `SERIAL TAG` and, on the iPad
+ * labels, `SERVICE TAG`. The `SIN` form is what OCR sometimes makes of `S/N`,
+ * so it has to be accepted too. The optional word has to be part of the anchor,
+ * otherwise `SERIAL TAG:` stops at `SERIAL` and the next token is the word
+ * TAG, not the value.
  */
-const SERIAL_ANCHOR = /\b(?:S\s*[/\\|I]?\s*N|SERIAL(?:\s*(?:NUMBER|NO\.?))?)\b\s*[:.;=#]*/
+const SERIAL_ANCHOR =
+  /\b(?:S\s*[/\\|I]?\s*N|SERIAL(?:\s*(?:NUMBER|NO\.?|TAG))?|SERVICE\s*TAG)\b\s*[:.;=#]*/
 
 function linesOf(text: string): string[] {
   return text
