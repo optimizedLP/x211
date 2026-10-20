@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { StatusBadge } from '../components/Badge'
@@ -31,7 +31,52 @@ export function Removed() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Bulk selection, same shape as the device list — except this page's bulk
+  // action is the irreversible one, so it keeps a second confirming click.
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set())
+  const [confirmingBulkErase, setConfirmingBulkErase] = useState(false)
+  const [bulkErasing, setBulkErasing] = useState(false)
+  const selectAllRef = useRef<HTMLInputElement>(null)
+
   const devices = state.data ?? []
+
+  const selectedRows = devices.filter((device) => selectedIds.has(device.id))
+  const allSelected = devices.length > 0 && selectedRows.length === devices.length
+  const someSelected = selectedRows.length > 0 && !allSelected
+
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected
+  }, [someSelected])
+
+  const toggleRow = (id: string) => {
+    setSelectedIds((previous) => {
+      const next = new Set(previous)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+    setConfirmingBulkErase(false)
+  }
+
+  const toggleAll = () => {
+    setSelectedIds(allSelected ? new Set() : new Set(devices.map((device) => device.id)))
+    setConfirmingBulkErase(false)
+  }
+
+  const eraseSelected = async () => {
+    if (bulkErasing || selectedRows.length === 0) return
+    setBulkErasing(true)
+    setError(null)
+    try {
+      await inventory.purgeDevices(selectedRows.map((device) => device.id))
+      setSelectedIds(new Set())
+      setConfirmingBulkErase(false)
+    } catch (actionError) {
+      setError(actionError instanceof Error ? actionError.message : String(actionError))
+    } finally {
+      setBulkErasing(false)
+    }
+  }
 
   const run = async (id: string, action: () => Promise<unknown>) => {
     if (busyId) return
@@ -92,10 +137,86 @@ export function Removed() {
       )}
 
       {devices.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-panel px-4 py-3 text-xs">
+          <label className="flex items-center gap-2 text-muted">
+            <input
+              ref={selectAllRef}
+              type="checkbox"
+              checked={allSelected}
+              onChange={toggleAll}
+              className="size-3.5 accent-accent"
+            />
+            Select all
+            {someSelected && (
+              <span className="text-[11px]">
+                ({selectedRows.length} of {devices.length})
+              </span>
+            )}
+          </label>
+
+          {selectedRows.length > 0 && !confirmingBulkErase && (
+            <>
+              <span className="font-semibold text-ink">{selectedRows.length} selected</span>
+              <button
+                type="button"
+                onClick={() => setConfirmingBulkErase(true)}
+                className="rounded-lg border border-bad/50 bg-bad/10 px-3 py-1.5 font-semibold text-bad transition-colors hover:bg-bad/20"
+              >
+                Delete permanently
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="rounded-lg border border-line px-3 py-1.5 font-semibold text-muted transition-colors hover:text-ink"
+              >
+                Clear selection
+              </button>
+            </>
+          )}
+
+          {selectedRows.length > 0 && confirmingBulkErase && (
+            <>
+              <span className="font-semibold text-bad">
+                Erase {selectedRows.length} forever?
+              </span>
+              <button
+                type="button"
+                onClick={eraseSelected}
+                disabled={bulkErasing}
+                className="rounded-lg border border-bad/50 bg-bad/15 px-3 py-1.5 font-semibold text-bad transition-colors hover:bg-bad/25 disabled:opacity-40"
+              >
+                {bulkErasing
+                  ? 'Erasing…'
+                  : `Yes, erase ${selectedRows.length === 1 ? 'it' : `${selectedRows.length} records`}`}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingBulkErase(false)}
+                disabled={bulkErasing}
+                className="rounded-lg border border-line px-3 py-1.5 font-semibold text-muted transition-colors hover:text-ink disabled:opacity-40"
+              >
+                Keep them
+              </button>
+              <span className="text-muted">There is no undo after this — nothing is left to restore.</span>
+            </>
+          )}
+        </div>
+      )}
+
+      {devices.length > 0 && (
         <div className="overflow-x-auto rounded-xl border border-line bg-panel">
           <table className="w-full border-collapse text-sm">
             <thead className="border-b border-line bg-panel-2">
               <tr>
+                <th scope="col" className="w-9 px-3 py-2 text-left">
+                  <span className="sr-only">Select</span>
+                  <span
+                    aria-hidden="true"
+                    className="text-[11px] font-bold tracking-wider text-muted uppercase"
+                  >
+                    ✓
+                  </span>
+                </th>
                 {['Device', 'Serial', 'Status', 'Notes', 'Removed', 'Actions'].map((label) => (
                   <th
                     key={label}
@@ -114,6 +235,8 @@ export function Removed() {
                   device={device}
                   busy={busyId === device.id}
                   confirming={confirmEraseId === device.id}
+                  selected={selectedIds.has(device.id)}
+                  onToggleSelect={() => toggleRow(device.id)}
                   onOpen={() => navigate(`/devices/${device.id}`)}
                   onRestore={() => run(device.id, () => inventory.restoreDevice(device.id))}
                   onAskErase={() => setConfirmEraseId(device.id)}
@@ -133,6 +256,8 @@ function RemovedRow({
   device,
   busy,
   confirming,
+  selected,
+  onToggleSelect,
   onOpen,
   onRestore,
   onAskErase,
@@ -142,6 +267,8 @@ function RemovedRow({
   device: Device
   busy: boolean
   confirming: boolean
+  selected: boolean
+  onToggleSelect: () => void
   onOpen: () => void
   onRestore: () => void
   onAskErase: () => void
@@ -151,8 +278,20 @@ function RemovedRow({
   return (
     <tr
       onClick={onOpen}
-      className="cursor-pointer border-b border-line/70 align-top last:border-b-0 hover:bg-white/[0.02]"
+      className={`cursor-pointer border-b border-line/70 align-top last:border-b-0 hover:bg-white/[0.02] ${
+        selected ? 'bg-accent/[0.06]' : ''
+      }`}
     >
+      <td className="px-3 py-2.5" onClick={(event) => event.stopPropagation()}>
+        {/* A tick must not open the record: the cell stops the row click. */}
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onToggleSelect}
+          aria-label={`Select ${device.assetTag ?? device.serial ?? 'device'}`}
+          className="size-3.5 accent-accent"
+        />
+      </td>
       <td className="px-3 py-2.5">
         {/* The link carries the keyboard/screen-reader path; the row click is the mouse path. */}
         <Link

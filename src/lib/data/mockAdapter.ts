@@ -375,6 +375,26 @@ export function createMockAdapter(): InventoryAdapter {
       persist(snapshot)
     },
 
+    async purgeDevices(ids: readonly string[]): Promise<string[]> {
+      await delay(LATENCY_MS)
+      if (ids.length === 0) return []
+      const targets = new Set(ids)
+      // Same two-step rule as purgeDevice: a record still in the fleet is left
+      // alone, so bulk erase cannot skip the bin.
+      const erased = snapshot.devices.filter(
+        (device) => targets.has(device.id) && device.deletedAt,
+      )
+      if (erased.length === 0) return []
+      const erasedIds = erased.map((device) => device.id)
+      const gone = new Set(erasedIds)
+      snapshot = {
+        ...snapshot,
+        devices: snapshot.devices.filter((device) => !gone.has(device.id)),
+      }
+      persist(snapshot)
+      return erasedIds
+    },
+
     async createDevice(input: NewDeviceInput): Promise<Device> {
       await delay(LATENCY_MS)
       const tag = clean(input.assetTag)

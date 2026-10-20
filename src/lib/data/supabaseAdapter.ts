@@ -354,6 +354,22 @@ export function createSupabaseAdapter(): InventoryAdapter {
       invalidate()
     },
 
+    async purgeDevices(ids: readonly string[]): Promise<string[]> {
+      if (ids.length === 0) return []
+      // `.not('deleted_at', 'is', null)` is the two-step rule again: only rows
+      // already in the bin can be erased, whatever ids arrive.
+      const { data, error } = await client
+        .from('devices')
+        .delete()
+        .in('id', [...ids])
+        .not('deleted_at', 'is', null)
+        .select('id')
+      if (error) throw new Error(error.message)
+      const erased = ((data ?? []) as { id: string }[]).map((row) => row.id)
+      if (erased.length > 0) invalidate()
+      return erased
+    },
+
     async createDevice(input: NewDeviceInput): Promise<Device> {
       const categories = await listCategoriesRaw()
       const category = categories.find((item) => item.id === input.categoryId)

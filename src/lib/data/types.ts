@@ -100,6 +100,14 @@ export interface InventoryAdapter {
    * enforced by the data layer rather than by one screen remembering it.
    */
   purgeDevice(id: string): Promise<void>
+  /**
+   * Permanent delete for several records — the bin's bulk action. The same
+   * two-step rule holds: ids that are not already removed are skipped, so a
+   * stale selection can never erase a record straight out of the fleet.
+   * Returns the ids actually erased, so callers only refresh when something
+   * really went.
+   */
+  purgeDevices(ids: readonly string[]): Promise<string[]>
 
   /**
    * One new record. Throws when the asset tag is already on file, which is the

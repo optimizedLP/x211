@@ -85,6 +85,12 @@ export const inventory: InventoryAdapter = {
     emitChange()
   },
 
+  async purgeDevices(ids) {
+    const erased = await backend.purgeDevices(ids)
+    if (erased.length > 0) emitChange()
+    return erased
+  },
+
   async createDevice(input) {
     const created = await backend.createDevice(input)
     emitChange()
