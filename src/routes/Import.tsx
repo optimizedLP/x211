@@ -19,6 +19,32 @@ import { useInventoryVersion } from '../lib/useInventoryVersion'
 
 const PREVIEW_LIMIT = 30
 
+/**
+ * The three counters above the preview are also its filters. “All” is the
+ * unselected state, so a filter is cleared by clicking its own counter again.
+ */
+type RowFilter = 'all' | 'ready' | 'problems' | 'warnings'
+
+const FILTER_LABELS: Record<Exclude<RowFilter, 'all'>, string> = {
+  ready: 'ready to import',
+  problems: 'with problems',
+  warnings: 'with warnings',
+}
+
+const FILTER_TONES: Record<Exclude<RowFilter, 'all'>, { idle: string; active: string }> = {
+  ready: { idle: 'text-ink', active: 'border-accent-2/50 bg-accent-2/10 text-accent-2' },
+  problems: { idle: 'text-bad', active: 'border-bad/50 bg-bad/10 text-bad' },
+  warnings: { idle: 'text-warn', active: 'border-warn/50 bg-warn/10 text-warn' },
+}
+
+function filterChipClass(tone: Exclude<RowFilter, 'all'>, selected: boolean): string {
+  const base =
+    'rounded-full border px-2.5 py-1 font-semibold transition-colors disabled:cursor-default disabled:opacity-50'
+  return selected
+    ? `${base} ${FILTER_TONES[tone].active}`
+    : `${base} border-transparent ${FILTER_TONES[tone].idle} hover:border-line hover:bg-panel-2`
+}
+
 const SELECT_CLASS =
   'mt-1 w-full rounded-lg border border-line bg-panel-2 px-2.5 py-1.5 text-xs text-ink focus:border-accent/60 focus:ring-2 focus:ring-accent/20 focus:outline-none'
 
@@ -90,6 +116,7 @@ export function ImportPage() {
   // checked anyway — this just unhides the rest when someone needs to hunt for
   // the rows behind the “N with problems” counter.
   const [showAllRows, setShowAllRows] = useState(false)
+  const [rowFilter, setRowFilter] = useState<RowFilter>('all')
 
   const referencesLoading =
     categoriesState.loading || locationsState.loading || staffState.loading || existingState.loading
@@ -123,6 +150,7 @@ export function ImportPage() {
     setCommitError(null)
     setResult(null)
     setShowAllRows(false)
+    setRowFilter('all')
   }
 
   const readFile = async (file: File) => {
@@ -153,6 +181,7 @@ export function ImportPage() {
     setCommitError(null)
     setResult(null)
     setShowAllRows(false)
+    setRowFilter('all')
     setFileKey((previous) => previous + 1)
   }
 
@@ -352,7 +381,32 @@ export function ImportPage() {
 
   // --- mapping + dry run ------------------------------------------------------
 
-  const previewRows = plan ? (showAllRows ? plan.rows : plan.rows.slice(0, PREVIEW_LIMIT)) : []
+  // The counters double as filters. A row can be counted in both “with problems”
+  // and “with warnings”, so the three are filters over one row set, not
+  // disjoint piles. “Ready” is exactly the set the import button would write,
+  // so a warned-but-writable row can appear under both counters.
+  const filterCounts: Record<Exclude<RowFilter, 'all'>, number> = {
+    ready: plan?.ready ?? 0,
+    problems: plan?.rowsWithErrors ?? 0,
+    warnings: plan?.rowsWithWarnings ?? 0,
+  }
+  // If a mapping change empties the active counter, fall back to everything
+  // rather than leaving the table filtered by a counter nobody can see.
+  const activeFilter: RowFilter =
+    rowFilter !== 'all' && filterCounts[rowFilter] === 0 ? 'all' : rowFilter
+  const filteredRows = plan
+    ? plan.rows.filter((row) => {
+        if (activeFilter === 'all') return true
+        if (activeFilter === 'ready') return row.errors.length === 0 && Boolean(row.input)
+        if (activeFilter === 'problems') return row.errors.length > 0
+        return row.warnings.length > 0
+      })
+    : []
+  // A filter always reveals every matching row — finding the rows behind
+  // “184 with problems” is the point — so the 30-row cap only applies to the
+  // unfiltered view.
+  const previewRows =
+    activeFilter === 'all' && !showAllRows ? filteredRows.slice(0, PREVIEW_LIMIT) : filteredRows
   const categoriesForFallback = categories.filter((category) => category.trackingType === 'serialized')
 
   return (
@@ -467,13 +521,50 @@ export function ImportPage() {
 
       {plan && plan.blockers.length === 0 && !referencesLoading && (
         <>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-line bg-panel px-4 py-3 text-xs">
-            <span className="font-semibold text-ink">{plan.ready} ready to import</span>
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2 rounded-xl border border-line bg-panel px-4 py-3 text-xs">
+            <button
+              type="button"
+              aria-pressed={activeFilter === 'ready'}
+              disabled={plan.ready === 0}
+              onClick={() => setRowFilter(activeFilter === 'ready' ? 'all' : 'ready')}
+              title={
+                activeFilter === 'ready'
+                  ? 'Show every row again'
+                  : 'Show only the rows that would be imported'
+              }
+              className={filterChipClass('ready', activeFilter === 'ready')}
+            >
+              {plan.ready} ready to import
+            </button>
             {plan.rowsWithErrors > 0 && (
-              <span className="text-bad">{plan.rowsWithErrors} with problems</span>
+              <button
+                type="button"
+                aria-pressed={activeFilter === 'problems'}
+                onClick={() => setRowFilter(activeFilter === 'problems' ? 'all' : 'problems')}
+                title={
+                  activeFilter === 'problems'
+                    ? 'Show every row again'
+                    : 'Show only the rows that cannot be imported'
+                }
+                className={filterChipClass('problems', activeFilter === 'problems')}
+              >
+                {plan.rowsWithErrors} with problems
+              </button>
             )}
             {plan.rowsWithWarnings > 0 && (
-              <span className="text-warn">{plan.rowsWithWarnings} with warnings</span>
+              <button
+                type="button"
+                aria-pressed={activeFilter === 'warnings'}
+                onClick={() => setRowFilter(activeFilter === 'warnings' ? 'all' : 'warnings')}
+                title={
+                  activeFilter === 'warnings'
+                    ? 'Show every row again'
+                    : 'Show only the rows that carry a warning'
+                }
+                className={filterChipClass('warnings', activeFilter === 'warnings')}
+              >
+                {plan.rowsWithWarnings} with warnings
+              </button>
             )}
             <button
               type="button"
@@ -565,7 +656,22 @@ export function ImportPage() {
             {plan.rows.length === 0 && (
               <p className="px-4 py-8 text-center text-sm text-muted">No rows to show.</p>
             )}
-            {plan.rows.length > PREVIEW_LIMIT && (
+            {activeFilter !== 'all' && (
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line/70 px-3 py-2 text-[11px] text-muted">
+                <span>
+                  Showing all {filteredRows.length} of {plan.rows.length} rows{' '}
+                  {FILTER_LABELS[activeFilter]}.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setRowFilter('all')}
+                  className="rounded-lg border border-line px-2.5 py-1 text-[11px] font-semibold text-muted transition-colors hover:border-accent/40 hover:text-accent"
+                >
+                  Show all {plan.rows.length} rows
+                </button>
+              </div>
+            )}
+            {activeFilter === 'all' && plan.rows.length > PREVIEW_LIMIT && (
               <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line/70 px-3 py-2 text-[11px] text-muted">
                 <span>
                   {showAllRows
