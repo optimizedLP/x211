@@ -320,6 +320,26 @@ export function createMockAdapter(): InventoryAdapter {
       return removed
     },
 
+    async deleteDevices(ids: readonly string[]): Promise<Device[]> {
+      await delay(LATENCY_MS)
+      if (ids.length === 0) return []
+      const targets = new Set(ids)
+      const stamp = new Date().toISOString()
+      const updatedAt = stamp.slice(0, 10)
+      const removed: Device[] = []
+      snapshot = {
+        ...snapshot,
+        devices: snapshot.devices.map((device) => {
+          if (!targets.has(device.id)) return device
+          const next: Device = { ...device, deletedAt: stamp, updatedAt }
+          removed.push(next)
+          return next
+        }),
+      }
+      if (removed.length > 0) persist(snapshot)
+      return removed
+    },
+
     async restoreDevice(id: string): Promise<Device> {
       await delay(LATENCY_MS)
       const index = snapshot.devices.findIndex((device) => device.id === id)

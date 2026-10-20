@@ -305,6 +305,20 @@ export function createSupabaseAdapter(): InventoryAdapter {
       return toDevice(data as unknown as DeviceRow)
     },
 
+    async deleteDevices(ids: readonly string[]): Promise<Device[]> {
+      if (ids.length === 0) return []
+      // One statement: the bulk selection on the device list is a single write,
+      // not a loop of round trips.
+      const { data, error } = await client
+        .from('devices')
+        .update({ deleted_at: new Date().toISOString(), updated_at: today() })
+        .in('id', [...ids])
+        .select(DEVICE_SELECT)
+      if (error) throw new Error(error.message)
+      invalidate()
+      return ((data ?? []) as unknown as DeviceRow[]).map(toDevice)
+    },
+
     async restoreDevice(id: string): Promise<Device> {
       const { data, error } = await client
         .from('devices')

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { StatusBadge, WarrantyBadge } from '../components/Badge'
@@ -9,6 +9,7 @@ import { inventory } from '../lib/data'
 import type { Category, Device, DeviceStatus, Location } from '../lib/types'
 import { ACTIVE_STATUSES, DEVICE_STATUSES, RETIRED_STATUSES } from '../lib/types'
 import { useAsync } from '../lib/useAsync'
+import { useInventoryVersion } from '../lib/useInventoryVersion'
 import { daysRemaining, warrantyBucket } from '../lib/warranty'
 
 type SortKey = 'assetTag' | 'serial' | 'category' | 'location' | 'holder' | 'status' | 'warranty'
@@ -105,8 +106,28 @@ export function Devices() {
   const navigate = useNavigate()
   const { isAdmin } = useAuth()
 
+  // Bulk selection. Ids rather than row objects, so sorting and refetching keep
+  // the same devices selected; cleared whenever the filter changes so nothing
+  // invisible is ever removed by a stale selection.
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set())
+  const [confirmingBulkRemove, setConfirmingBulkRemove] = useState(false)
+  const [bulkRemoving, setBulkRemoving] = useState(false)
+  const [bulkError, setBulkError] = useState<string | null>(null)
+  const selectAllRef = useRef<HTMLInputElement>(null)
+
+  /**
+   * A changed filter can hide rows, so anything selected is dropped: the bulk
+   * action must never reach a device that is no longer on screen.
+   */
+  const resetSelection = () => {
+    setSelectedIds(new Set())
+    setConfirmingBulkRemove(false)
+    setBulkError(null)
+  }
+
   /** Replace rather than push, so the back button does not walk keystroke by keystroke. */
   const setParam = (key: string, value: string | null) => {
+    resetSelection()
     setSearchParams(
       (previous) => {
         const next = new URLSearchParams(previous)
@@ -135,12 +156,18 @@ export function Devices() {
     [search, statuses, categoryId, locationId, includeRetired],
   )
 
-  const devicesState = useAsync(() => inventory.listDevices(query, now), [query])
+  // Subscribed to writes, so a bulk removal (or an edit made on another
+  // screen) refetches this list instead of leaving rows that no longer exist.
+  const version = useInventoryVersion()
+  const devicesState = useAsync(() => inventory.listDevices(query, now), [query, version])
 
   // Separates “nothing matches this search” from “there is nothing yet”. With the
   // demo fleet gone the list is genuinely empty on first run, and telling a new
   // user to clear filters on an empty fleet would be nonsense.
-  const fleetState = useAsync(() => inventory.listDevices({ includeRetired: true }, now), [now])
+  const fleetState = useAsync(() => inventory.listDevices({ includeRetired: true }, now), [
+    now,
+    version,
+  ])
   const fleetIsEmpty = (fleetState.data?.length ?? 0) === 0
 
   const categoryMap = useMemo(
@@ -168,14 +195,61 @@ export function Devices() {
     [rows, now],
   )
 
+  // Only rows on screen count: a search that narrows the list cannot leave a
+  // hidden device selected.
+  const selectedRows = useMemo(
+    () => rows.filter((device) => selectedIds.has(device.id)),
+    [rows, selectedIds],
+  )
+  const allSelected = rows.length > 0 && selectedRows.length === rows.length
+  const someSelected = selectedRows.length > 0 && !allSelected
+
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected
+  }, [someSelected])
+
+  const toggleRow = (id: string) => {
+    setSelectedIds((previous) => {
+      const next = new Set(previous)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+    setConfirmingBulkRemove(false)
+    setBulkError(null)
+  }
+
+  const toggleAll = () => {
+    setSelectedIds(allSelected ? new Set() : new Set(rows.map((device) => device.id)))
+    setConfirmingBulkRemove(false)
+    setBulkError(null)
+  }
+
+  const removeSelected = async () => {
+    if (bulkRemoving || selectedRows.length === 0) return
+    setBulkRemoving(true)
+    setBulkError(null)
+    try {
+      await inventory.deleteDevices(selectedRows.map((device) => device.id))
+      setSelectedIds(new Set())
+      setConfirmingBulkRemove(false)
+    } catch (error) {
+      setBulkError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setBulkRemoving(false)
+    }
+  }
+
   const hasFilters =
     search.trim() !== '' || statuses.length > 0 || categoryId !== '' || locationId !== '' || includeRetired
 
   const clearFilters = () => {
+    resetSelection()
     setSearchParams(new URLSearchParams(), { replace: true })
   }
 
   const toggleRetired = () => {
+    resetSelection()
     const showRetired = !includeRetired
     setSearchParams(
       (previous) => {
@@ -336,8 +410,27 @@ export function Devices() {
               onChange={toggleRetired}
               className="size-3.5 accent-accent"
             />
-            Include retired (obsolete / pickup / disposed)
+            Include retired (obsolete / disposed)
           </label>
+
+          {isAdmin && (
+            <label className="flex items-center gap-2 text-muted">
+              <input
+                ref={selectAllRef}
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleAll}
+                disabled={rows.length === 0}
+                className="size-3.5 accent-accent disabled:opacity-40"
+              />
+              Select all
+              {someSelected && (
+                <span className="text-[11px]">
+                  ({selectedRows.length} of {rows.length})
+                </span>
+              )}
+            </label>
+          )}
 
           {hasFilters && (
             <button
@@ -357,10 +450,76 @@ export function Devices() {
         </div>
       )}
 
+      {isAdmin && selectedRows.length > 0 && (
+        <div className="space-y-2 rounded-xl border border-accent/40 bg-accent/10 px-4 py-3 text-xs">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="font-semibold text-ink">
+              {selectedRows.length} {selectedRows.length === 1 ? 'device' : 'devices'} selected
+            </span>
+            {!confirmingBulkRemove ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingBulkRemove(true)}
+                  className="rounded-lg border border-bad/50 bg-bad/10 px-3 py-1.5 font-semibold text-bad transition-colors hover:bg-bad/20"
+                >
+                  Remove selected
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="rounded-lg border border-line px-3 py-1.5 font-semibold text-muted transition-colors hover:text-ink"
+                >
+                  Clear selection
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={removeSelected}
+                  disabled={bulkRemoving}
+                  className="rounded-lg border border-bad/50 bg-bad/15 px-3 py-1.5 font-semibold text-bad transition-colors hover:bg-bad/25 disabled:opacity-40"
+                >
+                  {bulkRemoving
+                    ? 'Removing…'
+                    : `Remove ${selectedRows.length} ${selectedRows.length === 1 ? 'device' : 'devices'}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingBulkRemove(false)}
+                  disabled={bulkRemoving}
+                  className="rounded-lg border border-line px-3 py-1.5 font-semibold text-muted transition-colors hover:text-ink disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+                <span className="text-muted">
+                  Nothing is erased — they move to{' '}
+                  <strong className="text-ink">Recently removed</strong>, where each can be restored.
+                </span>
+              </>
+            )}
+          </div>
+          {bulkError && (
+            <p className="rounded-lg border border-bad/40 bg-bad/15 px-3 py-2 text-bad">
+              Nothing was removed: {bulkError}
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="overflow-x-auto rounded-xl border border-line bg-panel">
         <table className="w-full border-collapse text-sm">
           <thead className="border-b border-line bg-panel-2">
             <tr>
+              {isAdmin && (
+                <th scope="col" className="w-9 px-3 py-2.5 text-left">
+                  <span className="sr-only">Select</span>
+                  <span aria-hidden="true" className="text-[11px] font-bold tracking-wider text-muted uppercase">
+                    ✓
+                  </span>
+                </th>
+              )}
               {COLUMNS.map((column) => (
                 <SortHeader
                   key={column.key}
@@ -380,6 +539,9 @@ export function Devices() {
                 category={categoryMap.get(device.categoryId)}
                 location={device.locationId ? locationMap.get(device.locationId) : undefined}
                 now={now}
+                selectable={isAdmin}
+                selected={selectedIds.has(device.id)}
+                onToggleSelect={() => toggleRow(device.id)}
                 onOpen={() => navigate(`/devices/${device.id}`)}
               />
             ))}
@@ -423,7 +585,7 @@ export function Devices() {
                 <p className="mt-1 text-xs text-muted">
                   {includeRetired
                     ? 'Try loosening the search or clearing a filter.'
-                    : 'Retired devices are hidden — tick “Include retired” to see obsolete, pickup and disposed units.'}
+                    : 'Retired devices are hidden — tick “Include retired” to see obsolete and disposed units.'}
                 </p>
                 {hasFilters && (
                   <button
@@ -466,19 +628,39 @@ function DeviceRow({
   category,
   location,
   now,
+  selectable,
+  selected,
+  onToggleSelect,
   onOpen,
 }: {
   device: Device
   category: Category | undefined
   location: Location | undefined
   now: Date
+  selectable: boolean
+  selected: boolean
+  onToggleSelect: () => void
   onOpen: () => void
 }) {
   return (
     <tr
       onClick={onOpen}
-      className="cursor-pointer border-b border-line/70 last:border-b-0 hover:bg-white/[0.02]"
+      className={`cursor-pointer border-b border-line/70 last:border-b-0 hover:bg-white/[0.02] ${
+        selected ? 'bg-accent/[0.06]' : ''
+      }`}
     >
+      {selectable && (
+        <td className="px-3 py-2.5" onClick={(event) => event.stopPropagation()}>
+          {/* A tick must not open the record: the cell stops the row click. */}
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggleSelect}
+            aria-label={`Select ${device.assetTag ?? device.model}`}
+            className="size-3.5 accent-accent"
+          />
+        </td>
+      )}
       <td className="px-3 py-2.5 whitespace-nowrap">
         {/* The link carries the keyboard/screen-reader path; the row click is the mouse path. */}
         <Link

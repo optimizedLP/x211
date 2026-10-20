@@ -83,6 +83,14 @@ export interface InventoryAdapter {
    * out of every list, counter and duplicate check for new records.
    */
   deleteDevice(id: string): Promise<Device>
+  /**
+   * Soft delete in one statement — the device list's bulk selection. Same
+   * meaning as `deleteDevice`: the records keep their asset tags and every one
+   * of them can be restored from the undo bin. Ids that are not on file are
+   * skipped rather than failing the whole batch, so one stale selection cannot
+   * block the rest.
+   */
+  deleteDevices(ids: readonly string[]): Promise<Device[]>
   restoreDevice(id: string): Promise<Device>
   /** Removed records only, most recently removed first. */
   listDeletedDevices(): Promise<Device[]>

@@ -67,6 +67,13 @@ export const inventory: InventoryAdapter = {
     return removed
   },
 
+  async deleteDevices(ids) {
+    const removed = await backend.deleteDevices(ids)
+    // Nothing to announce when every id was already gone.
+    if (removed.length > 0) emitChange()
+    return removed
+  },
+
   async restoreDevice(id) {
     const restored = await backend.restoreDevice(id)
     emitChange()
