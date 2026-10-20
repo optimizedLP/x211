@@ -9,8 +9,9 @@ import {
 /**
  * Pulls the asset tag and serial out of OCR text.
  *
- * The labels are uniform — `ASSET TAG: …` over a barcode, then `S/N: …`, then
- * `TYPE: …` — so this is anchored matching, not language understanding. That
+ * The labels are uniform — `ASSET TAG: …` over a barcode, then the serial
+ * (`S/N: …`, or `SERIAL #:` on the newer print run), then `TYPE: …` — so this
+ * is anchored matching, not language understanding. That
  * matters: a wrong digit that looks plausible is worse than an empty field, so
  * anything uncertain is returned as null and the person types it.
  *
@@ -53,8 +54,12 @@ const DOE_TAG = /\bDOE-LN[O0-9ILSBZ]{7}\b/
 /** Any `ABC-1234`-shaped token; the TYPE code (`3554-A19`) starts with digits and cannot match. */
 const HYPHENATED_TAG = /\b[A-Z]{2,5}-[A-Z0-9]{4,20}\b/g
 
-/** `S/N`, `SN`, and the `SIN` that OCR sometimes produces for `S/N`. */
-const SERIAL_ANCHOR = /\bS\s*[/\\|I]?\s*N\b\s*[:.;=]?/
+/**
+ * The serial's field label. DOE labels print it three ways depending on the
+ * batch: `S/N`, `SERIAL #` and `SERIAL NUMBER`. The `SIN` form is what OCR
+ * sometimes makes of `S/N`, so it has to be accepted too.
+ */
+const SERIAL_ANCHOR = /\b(?:S\s*[/\\|I]?\s*N|SERIAL(?:\s*(?:NUMBER|NO\.?))?)\b\s*[:.;=#]*/
 
 function linesOf(text: string): string[] {
   return text
@@ -139,6 +144,10 @@ function findSerial(text: string): string | null {
     const match = SERIAL_ANCHOR.exec(lines[index] ?? '')
     if (!match) continue
     const serial = valueAfterAnchor(lines, index, match.index + match[0].length)
+    // Two labels in one photo puts an asset tag right under the other unit's
+    // `SERIAL #:` heading. A serial never starts with the DOE prefix, so skip
+    // that candidate and keep reading rather than filling the field with a tag.
+    if (serial && /^DOE/.test(serial)) continue
     if (serial) return serial
   }
   return null

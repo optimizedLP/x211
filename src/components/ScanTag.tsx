@@ -42,9 +42,12 @@ function pickTag(codes: BarcodeRead[]): string | null {
     if (!tag || !looksLikeAssetTag(tag)) continue
     if (/^\d{4}-[A-Z0-9]{1,4}$/.test(tag)) continue
 
-    // DOE tags first, then anything starting with a letter (older labels),
-    // then the rest.
-    const score = /^DOE-LN\d{7}$/.test(tag) ? 3 : /^[A-Z]/.test(tag) ? 2 : 1
+    // DOE tags first — both the older `DOE-LN#######` shape and the newer
+    // `DOE-AC######` one. The label also carries a purchase-order Code 39
+    // (`WR210066735`), which is not an asset tag, and ranking every
+    // letter-initial code equally let the PO win whenever it was decoded
+    // first. Then anything else letter-initial, then the rest.
+    const score = /^DOE-/.test(tag) ? 3 : /^[A-Z]/.test(tag) ? 2 : 1
     if (!best || score > best.score) best = { tag, score }
   }
 
