@@ -102,7 +102,7 @@ export function DeviceDetail() {
   const isSerialized = device.trackingType === 'serialized'
 
   const startEditing = () => {
-    setForm(deviceToFormValues(device))
+    setForm(deviceToFormValues(device, locations))
     setFormError(null)
     setSaveError(null)
     setEditing(true)
@@ -129,7 +129,13 @@ export function DeviceDetail() {
     setFormError(null)
     setSaving(true)
     try {
-      await inventory.updateDevice(device.id, formValuesToInput(form))
+      const input = formValuesToInput(form)
+      const { locationName, ...rest } = input
+      const locationText = locationName?.trim() ?? ''
+      const holderText = rest.assignedTo?.trim() ?? ''
+      const locationId = locationText ? (await inventory.ensureLocation(locationText)).id : null
+      const assignedTo = holderText ? (await inventory.ensureStaff(holderText)).name : null
+      await inventory.updateDevice(device.id, { ...rest, locationId, assignedTo })
       setEditing(false)
       setForm(null)
     } catch (error) {
@@ -367,7 +373,6 @@ export function DeviceDetail() {
             locations={locations}
             staff={staff}
             keepCategoryId={device.categoryId}
-            keepHolder={device.assignedTo}
           />
 
           <p className="text-[11px] text-muted">

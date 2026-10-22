@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import type { Category, DeviceStatus, Location, Staff } from '../lib/types'
 import { DEVICE_STATUSES } from '../lib/types'
 import type { DeviceFormValues } from '../lib/deviceForm'
@@ -13,7 +14,6 @@ interface DeviceFieldsProps {
   staff: readonly Staff[]
   /** Kept selectable even when it is missing from the lists (imported or legacy values). */
   keepCategoryId?: string
-  keepHolder?: string | null
   /**
    * Set when a photo filled the field and nobody has confirmed it yet. The
    * barcode tag is exact; an OCR tag and every OCR serial are a guess.
@@ -29,17 +29,14 @@ export function DeviceFields({
   locations,
   staff,
   keepCategoryId,
-  keepHolder,
   tagNeedsReview = false,
   serialNeedsReview = false,
 }: DeviceFieldsProps) {
+  const locationListId = useId()
+  const holderListId = useId()
   const categoryOptions = categories.filter(
     (category) => category.trackingType === 'serialized' || category.id === keepCategoryId,
   )
-  const holderOptions =
-    keepHolder && !staff.some((person) => person.name === keepHolder)
-      ? [{ id: 'legacy-holder', name: keepHolder }, ...staff]
-      : staff
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -124,34 +121,36 @@ export function DeviceFields({
 
       <label className="block">
         <span className="text-xs text-muted">Location</span>
-        <select
-          value={values.locationId}
-          onChange={(event) => onChange('locationId', event.target.value)}
+        <input
+          value={values.location}
+          onChange={(event) => onChange('location', event.target.value)}
+          placeholder="Room 214 — or type a new room"
+          autoComplete="off"
+          list={locationListId}
           className={INPUT_CLASS}
-        >
-          <option value="">Unassigned</option>
+        />
+        <datalist id={locationListId}>
           {locations.map((location) => (
-            <option key={location.id} value={location.id}>
-              {location.name}
-            </option>
+            <option key={location.id} value={location.name} />
           ))}
-        </select>
+        </datalist>
       </label>
 
       <label className="block">
         <span className="text-xs text-muted">Holder</span>
-        <select
+        <input
           value={values.assignedTo}
           onChange={(event) => onChange('assignedTo', event.target.value)}
+          placeholder="Staff name — or type a new one"
+          autoComplete="off"
+          list={holderListId}
           className={INPUT_CLASS}
-        >
-          <option value="">Unassigned</option>
-          {holderOptions.map((person) => (
-            <option key={person.id} value={person.name}>
-              {person.name}
-            </option>
+        />
+        <datalist id={holderListId}>
+          {staff.map((person) => (
+            <option key={person.id} value={person.name} />
           ))}
-        </select>
+        </datalist>
       </label>
 
       <label className="block">

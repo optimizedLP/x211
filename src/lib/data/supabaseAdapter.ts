@@ -242,6 +242,77 @@ export function createSupabaseAdapter(): InventoryAdapter {
     return { created, duplicates }
   }
 
+  async function ensureLocationRow(name: string): Promise<LocationRow> {
+    const trimmed = name.trim()
+    if (!trimmed) throw new Error('Location name is required.')
+    const locations = await listLocationsRaw()
+    const key = roomKey(trimmed)
+    const match = locations.find(
+      (location) =>
+        roomKey(location.name) === key ||
+        (location.room_number ? roomKey(location.room_number) === key : false),
+    )
+    if (match) return match
+    const created: LocationRow = {
+      id: `loc-${crypto.randomUUID().slice(0, 8)}`,
+      name: trimmed,
+      room_number: trimmed.match(/\d+/)?.[0] ?? null,
+      floor: null,
+    }
+    const { error } = await client.from('locations').insert(created)
+    if (error && error.code !== '23505') throw new Error(error.message)
+    if (error) {
+      const retry = await listLocationsRaw()
+      const again = retry.find(
+        (location) =>
+          roomKey(location.name) === key ||
+          (location.room_number ? roomKey(location.room_number) === key : false),
+      )
+      if (!again) throw new Error(error.message)
+      return again
+    }
+    return created
+  }
+
+  async function ensureStaffRow(name: string): Promise<StaffRow> {
+    const trimmed = name.trim()
+    if (!trimmed) throw new Error('Holder name is required.')
+    const staff = await listStaffRaw()
+    const key = nameKey(trimmed)
+    const match = staff.find((person) => nameKey(person.name) === key)
+    if (match) return match
+    const created: StaffRow = {
+      id: `stf-${crypto.randomUUID().slice(0, 8)}`,
+      name: trimmed,
+      role: null,
+    }
+    const { error } = await client.from('staff').insert(created)
+    if (error && error.code !== '23505') throw new Error(error.message)
+    if (error) {
+      const retry = await listStaffRaw()
+      const again = retry.find((person) => nameKey(person.name) === key)
+      if (!again) throw new Error(error.message)
+      return again
+    }
+    return created
+  }
+
+  async function resolveLocation(input: NewDeviceInput): Promise<string | null> {
+    const direct = input.locationId?.trim()
+    if (direct) return direct
+    const text = input.locationName?.trim()
+    if (!text) return null
+    const location = await ensureLocationRow(text)
+    return location.id
+  }
+
+  async function resolveHolder(input: NewDeviceInput): Promise<string | null> {
+    const text = input.assignedTo?.trim()
+    if (!text) return null
+    const person = await ensureStaffRow(text)
+    return person.name
+  }
+
   return {
     async listDevices(query: DeviceQuery = {}, now: Date = new Date()): Promise<Device[]> {
       const rows = await loadRows()
@@ -375,6 +446,9 @@ export function createSupabaseAdapter(): InventoryAdapter {
       const category = categories.find((item) => item.id === input.categoryId)
       if (!category) throw new Error(`Unknown category: ${input.categoryId}`)
 
+      const locationId = await resolveLocation(input)
+      const assignedTo = await resolveHolder(input)
+
       const { data, error } = await client
         .from('devices')
         .insert({
@@ -384,8 +458,8 @@ export function createSupabaseAdapter(): InventoryAdapter {
           model: input.model.trim(),
           asset_tag: input.assetTag?.trim() || null,
           serial: input.serial?.trim() || null,
-          location_id: input.locationId || null,
-          assigned_to: input.assignedTo?.trim() || null,
+          location_id: locationId,
+          assigned_to: assignedTo,
           status: input.status ?? 'In Service',
           warranty_start: input.warrantyStart || null,
           warranty_end: input.warrantyEnd || null,
@@ -545,6 +619,16 @@ export function createSupabaseAdapter(): InventoryAdapter {
     async listStaff(): Promise<Staff[]> {
       const rows = await listStaffRaw()
       return rows.map((row) => ({ id: row.id, name: row.name, role: row.role }))
+    },
+
+    async ensureLocation(name: string): Promise<Location> {
+      const row = await ensureLocationRow(name)
+      return { id: row.id, name: row.name, roomNumber: row.room_number, floor: row.floor }
+    },
+
+    async ensureStaff(name: string): Promise<Staff> {
+      const row = await ensureStaffRow(name)
+      return { id: row.id, name: row.name, role: row.role }
     },
 
     async listBulkItems(): Promise<BulkItem[]> {

@@ -97,6 +97,18 @@ export const inventory: InventoryAdapter = {
     return created
   },
 
+  async ensureLocation(name) {
+    const location = await backend.ensureLocation(name)
+    emitChange()
+    return location
+  },
+
+  async ensureStaff(name) {
+    const person = await backend.ensureStaff(name)
+    emitChange()
+    return person
+  },
+
   async importDevices(inputs) {
     const outcome = await backend.importDevices(inputs)
     // Only notify when something was actually written; an all-duplicate import

@@ -401,7 +401,18 @@ export function createMockAdapter(): InventoryAdapter {
       if (tag && tagsInUse().has(tagKey(tag))) {
         throw new Error(`Asset tag ${tag} is already on another device.`)
       }
-      const device = build(input)
+      // Same learning as the import: a typed room or holder name becomes a
+      // reference entry in the same write, so free-text inputs work.
+      const locationName = clean(input.locationName)
+      const locationId =
+        clean(input.locationId) ?? (locationName ? ensureLocation(locationName).id : null)
+      const holderName = clean(input.assignedTo)
+      const holder = holderName ? ensureStaff(holderName) : null
+      const device = build({
+        ...input,
+        locationId,
+        assignedTo: holder?.name ?? input.assignedTo ?? null,
+      })
       snapshot = { ...snapshot, devices: [...snapshot.devices, device] }
       persist(snapshot)
       return device
@@ -458,6 +469,24 @@ export function createMockAdapter(): InventoryAdapter {
     async listStaff(): Promise<Staff[]> {
       await delay(LATENCY_MS)
       return [...snapshot.staff]
+    },
+
+    async ensureLocation(name: string): Promise<Location> {
+      await delay(LATENCY_MS)
+      const trimmed = name.trim()
+      if (!trimmed) throw new Error('Location name is required.')
+      const created = ensureLocation(trimmed)
+      persist(snapshot)
+      return created
+    },
+
+    async ensureStaff(name: string): Promise<Staff> {
+      await delay(LATENCY_MS)
+      const trimmed = name.trim()
+      if (!trimmed) throw new Error('Holder name is required.')
+      const created = ensureStaff(trimmed)
+      persist(snapshot)
+      return created
     },
 
     async listBulkItems(): Promise<BulkItem[]> {

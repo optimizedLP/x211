@@ -4,7 +4,7 @@ import {
   normalizeAssetTag,
   normalizeSerial,
 } from './identifiers'
-import type { Device, DeviceStatus } from './types'
+import type { Device, DeviceStatus, Location } from './types'
 
 /**
  * The device field set, shared by the detail editor and the new-device form.
@@ -12,6 +12,10 @@ import type { Device, DeviceStatus } from './types'
  * Values are held as strings so an empty input means "not recorded" — several
  * fields are legitimately blank on the real fleet, and the difference between
  * "never recorded" and "recorded as empty" is not worth a tri-state control.
+ *
+ * Location and holder are free text: the inputs suggest existing rooms and
+ * people but accept a new name, which the save path creates (same
+ * find-or-create rules as the spreadsheet import).
  */
 export interface DeviceFormValues {
   assetTag: string
@@ -19,7 +23,9 @@ export interface DeviceFormValues {
   categoryId: string
   brand: string
   model: string
-  locationId: string
+  /** Room display name, e.g. "Room 214" — blank means unassigned. */
+  location: string
+  /** Holder display name — blank means unassigned. */
   assignedTo: string
   status: DeviceStatus
   warrantyStart: string
@@ -36,7 +42,7 @@ export function blankDeviceForm(categoryId = ''): DeviceFormValues {
     categoryId,
     brand: '',
     model: '',
-    locationId: '',
+    location: '',
     assignedTo: '',
     status: 'In Service',
     warrantyStart: '',
@@ -47,14 +53,19 @@ export function blankDeviceForm(categoryId = ''): DeviceFormValues {
   }
 }
 
-export function deviceToFormValues(device: Device): DeviceFormValues {
+export function deviceToFormValues(
+  device: Device,
+  locations: readonly Location[] = [],
+): DeviceFormValues {
   return {
     assetTag: device.assetTag ?? '',
     serial: device.serial ?? '',
     categoryId: device.categoryId,
     brand: device.brand,
     model: device.model,
-    locationId: device.locationId ?? '',
+    location: device.locationId
+      ? (locations.find((item) => item.id === device.locationId)?.name ?? '')
+      : '',
     assignedTo: device.assignedTo ?? '',
     status: device.status,
     warrantyStart: device.warrantyStart ?? '',
@@ -80,7 +91,9 @@ export function formValuesToInput(form: DeviceFormValues): NewDeviceInput {
     // typed in lower case must not become a second record.
     assetTag: normalizeAssetTag(form.assetTag),
     serial: normalizeSerial(form.serial),
-    locationId: optional(form.locationId),
+    // Free text: the adapter finds or creates the room, so picking a
+    // suggestion reuses it and typing a new name adds it — same as import.
+    locationName: optional(form.location),
     assignedTo: optional(form.assignedTo),
     status: form.status,
     warrantyStart: optional(form.warrantyStart),
@@ -111,4 +124,3 @@ export function validateDeviceForm(form: DeviceFormValues): string | null {
   }
   return null
 }
-

@@ -129,6 +129,13 @@ export interface InventoryAdapter {
   listCategories(): Promise<Category[]>
   listLocations(): Promise<Location[]>
   listStaff(): Promise<Staff[]>
+  /**
+   * Find-or-create for the free-text Location / Holder inputs. Matching uses
+   * the same normalised keys as the import (roomKey / nameKey), so "214"
+   * and "Room 214" stay one room and "M. Rivera" does not duplicate.
+   */
+  ensureLocation(name: string): Promise<Location>
+  ensureStaff(name: string): Promise<Staff>
   listBulkItems(): Promise<BulkItem[]>
 
   /** Counts per warranty bucket — powers the dashboard tiles. */
