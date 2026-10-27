@@ -85,7 +85,7 @@ function ThemeToggle() {
       onClick={cycle}
       aria-label={THEME_HINT[mode]}
       title={THEME_HINT[mode]}
-      className="fixed right-[18px] bottom-[18px] z-50 grid size-[42px] place-items-center rounded-full border border-line bg-panel/85 text-[17px] leading-none text-muted shadow-lg backdrop-blur-md transition-colors hover:border-accent/45 hover:text-accent focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none"
+      className="fixed right-[18px] bottom-[18px] z-50 grid size-[42px] place-items-center rounded-full border border-line bg-panel/85 text-[17px] leading-none text-muted shadow-lg backdrop-blur-md transition-colors hover:border-accent/45 hover:text-accent focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:outline-none print:hidden"
     >
       <span aria-hidden="true">{THEME_GLYPH[mode]}</span>
     </button>
@@ -97,7 +97,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen">
-      <header className="fixed inset-x-0 top-0 z-40 border-b border-line bg-panel/85 backdrop-blur-md">
+      <header className="fixed inset-x-0 top-0 z-40 border-b border-line bg-panel/85 backdrop-blur-md print:hidden">
         <div className="flex h-14 items-center gap-2 px-4 md:gap-3 md:px-6">
           <Link
             to="/"
@@ -130,7 +130,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <main className="mx-auto max-w-6xl px-5 pt-[76px] pb-12 md:px-8">
         {isDemoBuild && (
-          <div className="mb-4 flex flex-wrap items-baseline gap-x-2 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-xs">
+          <div className="mb-4 flex flex-wrap items-baseline gap-x-2 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-xs print:hidden">
             <strong className="font-semibold text-accent">Demo</strong>
             <span className="text-muted">
               Sample data only — every device, room and person here is invented. Edits stay in this

@@ -6,11 +6,12 @@ import { useAuth } from '../lib/authContext'
 import { NOW } from '../lib/clock'
 import type { DeviceQuery } from '../lib/data'
 import { inventory } from '../lib/data'
+import { devicesToCsv, downloadCsv, exportFilename } from '../lib/exportDevices'
 import type { Category, Device, DeviceStatus, Location } from '../lib/types'
 import { ACTIVE_STATUSES, DEVICE_STATUSES, RETIRED_STATUSES } from '../lib/types'
 import { useAsync } from '../lib/useAsync'
 import { useInventoryVersion } from '../lib/useInventoryVersion'
-import { daysRemaining, warrantyBucket } from '../lib/warranty'
+import { daysRemaining, toIsoDate, warrantyBucket } from '../lib/warranty'
 
 type SortKey = 'assetTag' | 'serial' | 'category' | 'location' | 'holder' | 'status' | 'warranty'
 
@@ -114,6 +115,8 @@ export function Devices() {
   const [bulkRemoving, setBulkRemoving] = useState(false)
   const [bulkError, setBulkError] = useState<string | null>(null)
   const selectAllRef = useRef<HTMLInputElement>(null)
+  const [exportOpen, setExportOpen] = useState(false)
+  const exportMenuRef = useRef<HTMLDivElement>(null)
 
   /**
    * A changed filter can hide rows, so anything selected is dropped: the bulk
@@ -208,6 +211,26 @@ export function Devices() {
     if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected
   }, [someSelected])
 
+  // The export menu is a small popover: close it on outside click or Escape,
+  // the same dismissal people expect from any menu.
+  useEffect(() => {
+    if (!exportOpen) return
+    const onPointerDown = (event: PointerEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setExportOpen(false)
+      }
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExportOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [exportOpen])
+
   const toggleRow = (id: string) => {
     setSelectedIds((previous) => {
       const next = new Set(previous)
@@ -283,9 +306,41 @@ export function Devices() {
   const statusOptions = includeRetired ? DEVICE_STATUSES : ACTIVE_STATUSES
   const statusFilter = statuses[0] ?? ''
 
+  // Export always covers exactly the rows on screen (filtered + sorted), so a
+  // filtered view exports that slice and the unfiltered list exports the fleet.
+  const activeCategoryName =
+    categoryId !== ''
+      ? (categoriesState.data ?? []).find((category) => category.id === categoryId)?.name ?? ''
+      : ''
+  const activeLocationName =
+    locationId !== ''
+      ? (locationsState.data ?? []).find((location) => location.id === locationId)?.name ?? ''
+      : ''
+  const exportHint = statusFilter || activeCategoryName || activeLocationName || search.trim() || null
+  const exportDescription = [
+    statusFilter ? `Status: ${statusFilter}` : null,
+    activeCategoryName ? `Category: ${activeCategoryName}` : null,
+    activeLocationName ? `Location: ${activeLocationName}` : null,
+    search.trim() ? `Search: “${search.trim()}”` : null,
+    includeRetired ? 'Including retired' : null,
+  ].filter((part): part is string => part !== null)
+  const exportDateLabel = toIsoDate(NOW)
+
+  const handleExportCsv = () => {
+    setExportOpen(false)
+    if (rows.length === 0) return
+    downloadCsv(exportFilename(exportHint), devicesToCsv(rows, categoryMap, locationMap))
+  }
+
+  const handleExportPrint = () => {
+    setExportOpen(false)
+    if (rows.length === 0) return
+    window.print()
+  }
+
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+      <header className="flex flex-wrap items-end justify-between gap-3 print:hidden">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Devices</h1>
           <p className="mt-1 text-sm text-muted">
@@ -320,7 +375,7 @@ export function Devices() {
         </div>
       </header>
 
-      <div className="space-y-3 rounded-xl border border-line bg-panel p-4">
+      <div className="space-y-3 rounded-xl border border-line bg-panel p-4 print:hidden">
         <div className="relative">
           <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted">
             ⌕
@@ -432,15 +487,84 @@ export function Devices() {
             </label>
           )}
 
-          {hasFilters && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="ml-auto rounded-lg border border-line px-2.5 py-1 text-xs text-muted hover:border-accent/40 hover:text-accent"
-            >
-              Clear filters
-            </button>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {/* Notion-style export: arrow up into a bar. Menu offers CSV for
+                Excel and Print/PDF for paper or file — both cover exactly the
+                rows on screen. Visible to guests too: they can already read
+                everything shown here. */}
+            <div ref={exportMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setExportOpen((previous) => !previous)}
+                aria-haspopup="menu"
+                aria-expanded={exportOpen}
+                aria-label="Export visible devices"
+                title={
+                  rows.length === 0
+                    ? 'Nothing to export'
+                    : `Export ${rows.length} visible ${rows.length === 1 ? 'device' : 'devices'} as CSV or print`}
+                disabled={rows.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-xs text-muted transition-colors hover:border-accent/40 hover:text-accent disabled:cursor-default disabled:opacity-40"
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M3 2.5h10" />
+                  <path d="M8 13V5.5" />
+                  <path d="M5.2 8.3 8 5.5l2.8 2.8" />
+                </svg>
+                Export
+              </button>
+              {exportOpen && rows.length > 0 && (
+                <div
+                  role="menu"
+                  aria-label="Export format"
+                  className="absolute top-full right-0 z-30 mt-1.5 w-52 overflow-hidden rounded-xl border border-line bg-panel shadow-lg"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={handleExportCsv}
+                    className="block w-full px-3.5 py-2.5 text-left transition-colors hover:bg-panel-2"
+                  >
+                    <span className="block text-xs font-semibold text-ink">CSV (Excel)</span>
+                    <span className="mt-0.5 block text-[11px] text-muted">
+                      Spreadsheet of the {rows.length} visible{' '}
+                      {rows.length === 1 ? 'row' : 'rows'}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={handleExportPrint}
+                    className="block w-full border-t border-line px-3.5 py-2.5 text-left transition-colors hover:bg-panel-2"
+                  >
+                    <span className="block text-xs font-semibold text-ink">Print / PDF</span>
+                    <span className="mt-0.5 block text-[11px] text-muted">
+                      Manifest for paper or Save as PDF
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="rounded-lg border border-line px-2.5 py-1 text-xs text-muted hover:border-accent/40 hover:text-accent"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -451,7 +575,7 @@ export function Devices() {
       )}
 
       {isAdmin && selectedRows.length > 0 && (
-        <div className="space-y-2 rounded-xl border border-accent/40 bg-accent/10 px-4 py-3 text-xs">
+        <div className="space-y-2 rounded-xl border border-accent/40 bg-accent/10 px-4 py-3 text-xs print:hidden">
           <div className="flex flex-wrap items-center gap-3">
             <span className="font-semibold text-ink">
               {selectedRows.length} {selectedRows.length === 1 ? 'device' : 'devices'} selected
@@ -508,7 +632,7 @@ export function Devices() {
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-line bg-panel">
+      <div className="overflow-x-auto rounded-xl border border-line bg-panel print:hidden">
         <table className="w-full border-collapse text-sm">
           <thead className="border-b border-line bg-panel-2">
             <tr>
@@ -603,7 +727,7 @@ export function Devices() {
        * makes no sense on the warranty or supplies pages.
        */}
       {isAdmin && (
-        <div className="border-t border-line/70 pt-3.5">
+        <div className="border-t border-line/70 pt-3.5 print:hidden">
           <Link
             to="/removed"
             title="Recover a record that was removed by mistake"
@@ -613,6 +737,57 @@ export function Devices() {
           </Link>
         </div>
       )}
+
+      {/* Print-only manifest: hidden on screen, the only thing printed. Same
+          rows and order as the visible table, as plain text for paper/PDF. */}
+      <section aria-hidden="true" className="hidden print:block">
+        <h1 style={{ fontSize: 18, fontWeight: 700 }}>x211 Device list</h1>
+        <p style={{ fontSize: 12, marginTop: 4 }}>
+          {rows.length} {rows.length === 1 ? 'device' : 'devices'} · {exportDateLabel}
+          {exportDescription.length > 0 ? ` · ${exportDescription.join(' · ')}` : ''}
+        </p>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12, fontSize: 11 }}>
+          <thead>
+            <tr>
+              {['Asset tag', 'Serial', 'Category', 'Location', 'Holder', 'Status', 'Warranty'].map(
+                (heading) => (
+                  <th
+                    key={heading}
+                    style={{ textAlign: 'left', borderBottom: '1px solid #999', padding: '6px 8px' }}
+                  >
+                    {heading}
+                  </th>
+                ),
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((device) => (
+              <tr key={device.id}>
+                <td style={{ borderBottom: '1px solid #ccc', padding: '5px 8px' }}>
+                  {device.assetTag ?? 'no tag'}
+                </td>
+                <td style={{ borderBottom: '1px solid #ccc', padding: '5px 8px' }}>
+                  {device.serial ?? 'no serial'}
+                </td>
+                <td style={{ borderBottom: '1px solid #ccc', padding: '5px 8px' }}>
+                  {categoryMap.get(device.categoryId)?.name ?? '—'}
+                </td>
+                <td style={{ borderBottom: '1px solid #ccc', padding: '5px 8px' }}>
+                  {device.locationId ? (locationMap.get(device.locationId)?.name ?? '—') : 'unassigned'}
+                </td>
+                <td style={{ borderBottom: '1px solid #ccc', padding: '5px 8px' }}>
+                  {device.assignedTo ?? '—'}
+                </td>
+                <td style={{ borderBottom: '1px solid #ccc', padding: '5px 8px' }}>{device.status}</td>
+                <td style={{ borderBottom: '1px solid #ccc', padding: '5px 8px' }}>
+                  {device.warrantyEnd ?? '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
     </div>
   )
 }

@@ -56,6 +56,22 @@ body,
   height: 100%;
 }
 
+/*
+ * Print manifest: the Devices page renders a plain print-only section and
+ * hides every screen control with Tailwind's print:hidden. These rules keep
+ * the paper output black on white regardless of the day/night theme.
+ */
+@media print {
+  body {
+    background-color: #fff;
+    color: #000;
+  }
+
+  main {
+    padding-top: 0 !important;
+  }
+}
+
 body {
   background-color: var(--bg);
   color: var(--ink);
