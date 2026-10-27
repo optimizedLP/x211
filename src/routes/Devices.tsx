@@ -504,11 +504,11 @@ export function Devices() {
                     ? 'Nothing to export'
                     : `Export ${rows.length} visible ${rows.length === 1 ? 'device' : 'devices'} as CSV or print`}
                 disabled={rows.length === 0}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-xs text-muted transition-colors hover:border-accent/40 hover:text-accent disabled:cursor-default disabled:opacity-40"
+                className="inline-flex items-center rounded-lg border border-line px-2 py-1 text-xs text-muted transition-colors hover:border-accent/40 hover:text-accent disabled:cursor-default disabled:opacity-40"
               >
                 <svg
-                  width="13"
-                  height="13"
+                  width="14"
+                  height="14"
                   viewBox="0 0 16 16"
                   fill="none"
                   stroke="currentColor"
@@ -521,7 +521,7 @@ export function Devices() {
                   <path d="M8 13V5.5" />
                   <path d="M5.2 8.3 8 5.5l2.8 2.8" />
                 </svg>
-                Export
+                <span className="sr-only">Export visible devices</span>
               </button>
               {exportOpen && rows.length > 0 && (
                 <div
