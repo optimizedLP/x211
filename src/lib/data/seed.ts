@@ -26,6 +26,7 @@ const CATEGORIES: readonly Category[] = [
   { id: 'cat-ipad', name: 'iPad', defaultWarrantyMonths: 12, trackingType: 'serialized' },
   { id: 'cat-monitor', name: 'Monitor', defaultWarrantyMonths: 36, trackingType: 'serialized' },
   { id: 'cat-printer', name: 'Printer', defaultWarrantyMonths: 36, trackingType: 'serialized' },
+  { id: 'cat-desktop', name: 'Desktop', defaultWarrantyMonths: 36, trackingType: 'serialized' },
   { id: 'cat-charger', name: 'Charger', defaultWarrantyMonths: 12, trackingType: 'bulk' },
   { id: 'cat-keyboard', name: 'Keyboard', defaultWarrantyMonths: 12, trackingType: 'bulk' },
   { id: 'cat-mouse', name: 'Mouse', defaultWarrantyMonths: 12, trackingType: 'bulk' },

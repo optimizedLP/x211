@@ -29,6 +29,7 @@ insert into categories (id, name, default_warranty_months, tracking_type) values
   ('cat-ipad',       'iPad',           12, 'serialized'),
   ('cat-monitor',    'Monitor',        36, 'serialized'),
   ('cat-printer',    'Printer',        36, 'serialized'),
+  ('cat-desktop',    'Desktop',        36, 'serialized'),
   ('cat-charger',    'Charger',        12, 'bulk'),
   ('cat-keyboard',   'Keyboard',       12, 'bulk'),
   ('cat-mouse',      'Mouse',          12, 'bulk'),

@@ -65,11 +65,22 @@ function normalise(snapshot: InventorySnapshot): InventorySnapshot {
     // seed is not enough for a browser that already stored a snapshot — and
     // bumping the key again would throw away real records — so the old label is
     // rewritten on read instead. The id never changes, so devices are untouched.
-    categories: snapshot.categories.map((category) =>
-      category.id === 'cat-laptop' && category.name === 'Lenovo Laptop'
-        ? { ...category, name: 'Windows Laptop' }
-        : category,
-    ),
+    categories: (() => {
+      const renamed = snapshot.categories.map((category) =>
+        category.id === 'cat-laptop' && category.name === 'Lenovo Laptop'
+          ? { ...category, name: 'Windows Laptop' }
+          : category,
+      )
+      // Desktop was added after real data was in use. Bumping the storage key
+      // would throw away records, so a browser holding an old snapshot learns
+      // the new category on read instead. The id is stable, so devices are untouched.
+      return renamed.some((category) => category.id === 'cat-desktop')
+        ? renamed
+        : [
+            ...renamed,
+            { id: 'cat-desktop', name: 'Desktop', defaultWarrantyMonths: 36, trackingType: 'serialized' as const },
+          ]
+    })(),
   }
 }
 
