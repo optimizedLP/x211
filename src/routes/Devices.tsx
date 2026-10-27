@@ -559,22 +559,16 @@ export function Devices() {
                 <p className="text-sm text-ink">No devices yet.</p>
                 <p className="mt-1 text-xs text-muted">
                   {isAdmin
-                    ? 'Add one by hand, or bring the spreadsheet you already keep in through the importer.'
+                    ? 'Import the spreadsheet, scan a label, or type one in by hand.'
                     : 'An admin adds and imports devices. This account can browse what is here.'}
                 </p>
                 {isAdmin && (
                   <div className="mt-4 flex flex-wrap justify-center gap-2">
                     <Link
-                      to="/import"
+                      to="/devices/new"
                       className="rounded-lg border border-accent/50 bg-accent/15 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent/25"
                     >
-                      Import a CSV
-                    </Link>
-                    <Link
-                      to="/devices/new"
-                      className="rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-accent/40 hover:text-accent"
-                    >
-                      + New device
+                      Add your first devices
                     </Link>
                   </div>
                 )}

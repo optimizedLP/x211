@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { DeviceFields } from '../components/DeviceForm'
 import type { ScanResult } from '../components/ScanTag'
@@ -11,12 +11,18 @@ import type { DeviceFormValues } from '../lib/deviceForm'
 import { useAsync } from '../lib/useAsync'
 
 /**
- * One device, typed in by hand. The fields are the same component the detail
- * editor uses, so the two can never drift apart — and it is the landing place
- * for anything a spreadsheet import cannot express.
+ * Adding starts with a choice — import a sheet, scan a label, or type one in
+ * by hand. The manual fields are the same component the detail editor uses,
+ * so the two can never drift apart. No choice is remembered: the chooser
+ * shows every time, so there is exactly one front door for adding.
  */
 export function NewDevice() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const requested = searchParams.get('method')
+  const [method, setMethod] = useState<'manual' | null>(
+    requested === 'manual' || requested === 'scan' ? 'manual' : null,
+  )
 
   const categoriesState = useAsync(() => inventory.listCategories(), [])
   const locationsState = useAsync(() => inventory.listLocations(), [])
@@ -26,7 +32,7 @@ export function NewDevice() {
   const [form, setForm] = useState<DeviceFormValues>(() => blankDeviceForm())
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [scanning, setScanning] = useState(false)
+  const [scanning, setScanning] = useState(searchParams.get('method') === 'scan' && !isDemoBuild)
   const [scanned, setScanned] = useState(false)
   const [review, setReview] = useState({ tag: false, serial: false })
 
@@ -70,6 +76,86 @@ export function NewDevice() {
     }
   }
 
+  if (method === null) {
+    return (
+      <div className="max-w-3xl space-y-5">
+        <div>
+          <Link to="/" className="text-xs text-muted transition-colors hover:text-accent">
+            ← Devices
+          </Link>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight">Add devices</h1>
+          <p className="mt-1 text-sm text-muted">Choose how to add — you can use all three.</p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Link
+            to="/import"
+            className="group rounded-xl border border-line bg-panel p-5 text-left transition-colors hover:border-accent/40"
+          >
+            <div className="text-lg" aria-hidden="true">
+              ⇪
+            </div>
+            <div className="mt-2 text-sm font-semibold text-ink">Import a spreadsheet</div>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              Add many at once from a CSV. Duplicates are skipped, so re-uploading the master sheet is
+              safe.
+            </p>
+            <span className="mt-3 inline-block text-xs font-semibold text-accent group-hover:text-ink">
+              Open the importer →
+            </span>
+          </Link>
+
+          {!isDemoBuild ? (
+            <button
+              type="button"
+              onClick={() => {
+                setMethod('manual')
+                setScanning(true)
+              }}
+              className="rounded-xl border border-line bg-panel p-5 text-left transition-colors hover:border-accent/40"
+            >
+              <div className="text-lg" aria-hidden="true">
+                ◉
+              </div>
+              <div className="mt-2 text-sm font-semibold text-ink">Scan the asset tag</div>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                Camera or photo reads the label and fills the tag and serial for you to confirm.
+              </p>
+              <span className="mt-3 inline-block text-xs font-semibold text-accent">
+                Scan a label →
+              </span>
+            </button>
+          ) : (
+            <div className="rounded-xl border border-line bg-panel p-5 opacity-60">
+              <div className="text-lg" aria-hidden="true">
+                ◉
+              </div>
+              <div className="mt-2 text-sm font-semibold text-ink">Scan the asset tag</div>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                Not in the public demo — the scanner ships with the real app only.
+              </p>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setMethod('manual')}
+            className="rounded-xl border border-line bg-panel p-5 text-left transition-colors hover:border-accent/40"
+          >
+            <div className="text-lg" aria-hidden="true">
+              ✎
+            </div>
+            <div className="mt-2 text-sm font-semibold text-ink">Enter manually</div>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              One device, typed in by hand. Brand, model and category are the only required fields.
+            </p>
+            <span className="mt-3 inline-block text-xs font-semibold text-accent">Open the form →</span>
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-3xl space-y-5">
       <div>
@@ -78,11 +164,14 @@ export function NewDevice() {
         </Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">New device</h1>
         <p className="mt-1 text-sm text-muted">
-          For one unit at a time. Adding a whole fleet?{' '}
-          <Link to="/import" className="font-semibold text-accent hover:text-ink">
-            Import a spreadsheet
-          </Link>{' '}
-          instead.
+          One unit at a time.{' '}
+          <button
+            type="button"
+            onClick={() => setMethod(null)}
+            className="font-semibold text-accent hover:text-ink"
+          >
+            All options
+          </button>
         </p>
       </div>
 
