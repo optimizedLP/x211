@@ -75,6 +75,18 @@ function tagKey(tag: string): string {
   return tag.trim().toUpperCase()
 }
 
+function serialKey(serial: string): string {
+  return serial.trim().toUpperCase()
+}
+
+function cleanId(value: string | null | undefined): string | null {
+  const trimmed = value?.trim()
+  if (!trimmed) return null
+  const normalised = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '')
+  if (['none', 'na', 'null', 'nil', 'blank', 'notag', 'untagged', 'noserial', 'unknown', 'empty'].includes(normalised)) return null
+  return trimmed
+}
+
 function toDevice(row: DeviceRow): Device {
   return {
     id: row.id,
@@ -446,6 +458,13 @@ export function createSupabaseAdapter(): InventoryAdapter {
       const category = categories.find((item) => item.id === input.categoryId)
       if (!category) throw new Error(`Unknown category: ${input.categoryId}`)
 
+      const cleanSerial = cleanId(input.serial)
+      if (cleanSerial) {
+        const rows = await loadRows()
+        const clash = rows.some((row) => row.serial && serialKey(row.serial) === serialKey(cleanSerial))
+        if (clash) throw new Error(`Serial ${cleanSerial} is already on another device.`)
+      }
+
       const locationId = await resolveLocation(input)
       const assignedTo = await resolveHolder(input)
 
@@ -456,8 +475,8 @@ export function createSupabaseAdapter(): InventoryAdapter {
           category_id: category.id,
           brand: input.brand.trim(),
           model: input.model.trim(),
-          asset_tag: input.assetTag?.trim() || null,
-          serial: input.serial?.trim() || null,
+          asset_tag: cleanId(input.assetTag),
+          serial: cleanId(input.serial),
           location_id: locationId,
           assigned_to: assignedTo,
           status: input.status ?? 'In Service',
@@ -487,9 +506,15 @@ export function createSupabaseAdapter(): InventoryAdapter {
       const existingRows = await loadRows()
       const takenTags = new Set(
         existingRows
-          .map((row) => row.asset_tag)
+          .map((row) => cleanId(row.asset_tag))
           .filter((tag): tag is string => Boolean(tag))
           .map(tagKey),
+      )
+      const takenSerials = new Set(
+        existingRows
+          .map((row) => cleanId(row.serial))
+          .filter((serial): serial is string => Boolean(serial))
+          .map(serialKey),
       )
 
       const locations = await listLocationsRaw()
@@ -511,9 +536,14 @@ export function createSupabaseAdapter(): InventoryAdapter {
       const duplicates: string[] = []
 
       for (const input of inputs) {
-        const tag = input.assetTag?.trim() ?? ''
+        const tag = cleanId(input.assetTag) ?? ''
+        const serial = cleanId(input.serial) ?? ''
         if (tag && takenTags.has(tagKey(tag))) {
           duplicates.push(tag)
+          continue
+        }
+        if (serial && takenSerials.has(serialKey(serial))) {
+          duplicates.push(serial)
           continue
         }
 
@@ -563,13 +593,14 @@ export function createSupabaseAdapter(): InventoryAdapter {
         }
 
         if (tag) takenTags.add(tagKey(tag))
+        if (serial) takenSerials.add(serialKey(serial))
         rows.push({
           tracking_type: category.trackingType,
           category_id: category.id,
           brand: input.brand.trim(),
           model: input.model.trim(),
           asset_tag: tag || null,
-          serial: input.serial?.trim() || null,
+          serial: serial || null,
           location_id: locationId,
           assigned_to: assignedTo,
           status: input.status ?? 'In Service',

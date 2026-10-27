@@ -246,12 +246,23 @@ export interface ImportPlanRow {
   input: NewDeviceInput | null
   errors: string[]
   warnings: string[]
+  /**
+   * Set when the row matches something already on record (or a sibling row in
+   * the same file). Skipped rows are never written — they are the expected
+   * shape of re-uploading a master sheet, not a problem to fix.
+   */
+  skippedReason: string | null
 }
 
 export interface ImportPlan {
   rows: ImportPlanRow[]
   /** Rows that will be written. */
   ready: number
+  /** Rows already on record — skipped, not written, not a problem. */
+  skipped: number
+  rowsSkipped: number
+  /** Rows with real data problems that need a fix. */
+  rowsNeedingFix: number
   rowsWithErrors: number
   rowsWithWarnings: number
   /** Header-level reasons the import cannot run yet. */
@@ -275,6 +286,32 @@ export interface PlanArgs {
   staff: readonly Staff[]
   /** Existing records, retired included, so duplicate tags are caught. */
   existing: readonly Device[]
+}
+
+/**
+ * Spreadsheet id cells that mean "blank" — the word none, n/a, a lone dash
+ * and friends — normalise to empty, so they never collide as a tag called
+ * NONE and never count as identity. "none" still renders as *none* because
+ * the preview treats empty as unlabelled.
+ */
+const PLACEHOLDER_IDS = new Set([
+  'none',
+  'na',
+  'null',
+  'nil',
+  'blank',
+  'notag',
+  'untagged',
+  'noserial',
+  'unknown',
+  'empty',
+])
+
+export function cleanIdentity(raw: string | null | undefined): string {
+  const trimmed = (raw ?? '').trim()
+  if (!trimmed) return ''
+  if (PLACEHOLDER_IDS.has(headerKey(trimmed))) return ''
+  return trimmed
 }
 
 function addMonthsSafe(isoDate: string, months: number): string | null {
@@ -323,13 +360,13 @@ export function buildImportPlan({
 
   const tagsOnRecord = new Set(
     existing
-      .map((device) => device.assetTag?.trim().toUpperCase())
-      .filter((tag): tag is string => Boolean(tag)),
+      .map((device) => cleanIdentity(device.assetTag ?? '').toUpperCase())
+      .filter(Boolean),
   )
   const serialsOnRecord = new Set(
     existing
-      .map((device) => device.serial?.trim().toUpperCase())
-      .filter((serial): serial is string => Boolean(serial)),
+      .map((device) => cleanIdentity(device.serial ?? '').toUpperCase())
+      .filter(Boolean),
   )
 
   const seenTags = new Map<string, number>()
@@ -353,8 +390,9 @@ export function buildImportPlan({
       return column === UNMAPPED ? '' : (cells[column] ?? '').trim()
     }
 
-    const assetTag = value('assetTag')
-    const serial = value('serial')
+    // "none" / "n/a" / "-" in an id cell means blank, not a tag called NONE.
+    const assetTag = cleanIdentity(value('assetTag'))
+    const serial = cleanIdentity(value('serial'))
     const brand = value('brand')
     const model = value('model')
     const categoryText = value('category')
@@ -429,31 +467,45 @@ export function buildImportPlan({
       errors.push('Warranty end is before the purchase date.')
     }
 
-    // --- asset tag uniqueness
-    if (assetTag) {
-      const tag = assetTag.toUpperCase()
-      if (tagsOnRecord.has(tag)) {
-        errors.push(`Asset tag ${assetTag} is already on record.`)
-      }
-      const earlier = seenTags.get(tag)
-      if (earlier !== undefined) {
-        errors.push(`Asset tag ${assetTag} also appears on row ${earlier}.`)
-      } else {
-        seenTags.set(tag, rowNumber)
-      }
+    // --- identity: tag if there is one, else serial. Either matching the
+    // --- fleet (or a sibling row) means "already on record" — skipped, not
+    // --- an error and not a warning. Only rows with neither need a fix.
+    const tagKey = assetTag ? assetTag.toUpperCase() : ''
+    const serialKey = serial ? serial.toUpperCase() : ''
+    let skippedReason: string | null = null
+    if (tagKey && tagsOnRecord.has(tagKey)) {
+      skippedReason = `Asset tag ${assetTag} is already on record — skipped.`
+    } else if (serialKey && serialsOnRecord.has(serialKey)) {
+      skippedReason = `Serial ${serial} is already on record — skipped.`
+    } else if (tagKey && seenTags.has(tagKey)) {
+      skippedReason = `Asset tag ${assetTag} also appears on row ${seenTags.get(tagKey)} — skipped.`
+    } else if (serialKey && seenSerials.has(serialKey)) {
+      skippedReason = `Serial ${serial} also appears on row ${seenSerials.get(serialKey)} — skipped.`
+    }
+    if (tagKey && !seenTags.has(tagKey)) seenTags.set(tagKey, rowNumber)
+    if (serialKey && !seenSerials.has(serialKey)) seenSerials.set(serialKey, rowNumber)
+
+    if (skippedReason) {
+      rows.push({
+        rowNumber,
+        preview: {
+          assetTag,
+          serial,
+          brand,
+          model,
+          category: categoryText,
+          status: statusText || 'In Service',
+        },
+        input: null,
+        errors: [],
+        warnings: [],
+        skippedReason,
+      })
+      return
     }
 
-    if (serial) {
-      const key = serial.toUpperCase()
-      if (serialsOnRecord.has(key)) {
-        warnings.push(`Serial ${serial} is already on another device.`)
-      }
-      const earlier = seenSerials.get(key)
-      if (earlier !== undefined) {
-        warnings.push(`Serial ${serial} also appears on row ${earlier}.`)
-      } else {
-        seenSerials.set(key, rowNumber)
-      }
+    if (!assetTag && !serial) {
+      errors.push('Add an asset tag or serial — otherwise I can’t tell if this row is already on record.')
     }
 
     // --- location / holder
@@ -486,7 +538,8 @@ export function buildImportPlan({
             brand,
             model,
             assetTag: assetTag || null,
-            serial: serial || null,
+            serial: serial || null, // both already cleaned: placeholders became blank
+
             locationId: locationMatch?.id ?? null,
             locationName: locationText || null,
             // Store the canonical staff name when we recognise it, the raw text otherwise.
@@ -501,16 +554,22 @@ export function buildImportPlan({
         : null,
       errors,
       warnings,
+      skippedReason: null,
     })
   })
 
   if (table.headers.length === 0) blockers.push('The file has no rows.')
   else if (rows.length === 0) blockers.push('No data rows found under the header.')
 
+  const skippedRows = rows.filter((row) => row.skippedReason)
+  const fixRows = rows.filter((row) => !row.skippedReason && row.errors.length > 0)
   return {
     rows,
-    ready: rows.filter((row) => row.errors.length === 0 && row.input).length,
-    rowsWithErrors: rows.filter((row) => row.errors.length > 0).length,
+    ready: rows.filter((row) => !row.skippedReason && row.errors.length === 0 && row.input).length,
+    skipped: skippedRows.length,
+    rowsSkipped: skippedRows.length,
+    rowsNeedingFix: fixRows.length,
+    rowsWithErrors: fixRows.length,
     rowsWithWarnings: rows.filter((row) => row.warnings.length > 0).length,
     blockers,
     newLocations: [...newLocations.values()],

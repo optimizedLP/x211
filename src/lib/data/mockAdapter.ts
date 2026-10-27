@@ -125,6 +125,19 @@ function tagKey(tag: string): string {
   return tag.trim().toUpperCase()
 }
 
+function serialKey(serial: string): string {
+  return serial.trim().toUpperCase()
+}
+
+/** Placeholder id cells ("none", "n/a", "-") mean blank, never a real tag/serial. */
+function cleanId(value: string | null | undefined): string | null {
+  const trimmed = value?.trim()
+  if (!trimmed) return null
+  const normalised = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '')
+  if (['none', 'na', 'null', 'nil', 'blank', 'notag', 'untagged', 'noserial', 'unknown', 'empty'].includes(normalised)) return null
+  return trimmed
+}
+
 function referenceId(prefix: string, key: string): string {
   const stem = key.slice(0, 24) || Math.random().toString(16).slice(2, 8)
   return `${prefix}-${stem}`
@@ -158,9 +171,17 @@ export function createMockAdapter(): InventoryAdapter {
   const tagsInUse = (): Set<string> =>
     new Set(
       snapshot.devices
-        .map((device) => device.assetTag)
+        .map((device) => cleanId(device.assetTag))
         .filter((tag): tag is string => Boolean(tag))
         .map(tagKey),
+    )
+
+  const serialsInUse = (): Set<string> =>
+    new Set(
+      snapshot.devices
+        .map((device) => cleanId(device.serial))
+        .filter((serial): serial is string => Boolean(serial))
+        .map(serialKey),
     )
 
   /**
@@ -397,9 +418,13 @@ export function createMockAdapter(): InventoryAdapter {
 
     async createDevice(input: NewDeviceInput): Promise<Device> {
       await delay(LATENCY_MS)
-      const tag = clean(input.assetTag)
+      const tag = cleanId(input.assetTag)
       if (tag && tagsInUse().has(tagKey(tag))) {
         throw new Error(`Asset tag ${tag} is already on another device.`)
+      }
+      const serial = cleanId(input.serial)
+      if (serial && serialsInUse().has(serialKey(serial))) {
+        throw new Error(`Serial ${serial} is already on another device. `)
       }
       // Same learning as the import: a typed room or holder name becomes a
       // reference entry in the same write, so free-text inputs work.
@@ -421,14 +446,20 @@ export function createMockAdapter(): InventoryAdapter {
     async importDevices(inputs: readonly NewDeviceInput[]): Promise<ImportOutcome> {
       await delay(LATENCY_MS)
       const taken = tagsInUse()
+      const takenSerials = serialsInUse()
       const created: Device[] = []
       const duplicates: string[] = []
       const before = { locations: snapshot.locations.length, staff: snapshot.staff.length }
 
       for (const input of inputs) {
-        const tag = clean(input.assetTag)
+        const tag = cleanId(input.assetTag)
+        const serial = cleanId(input.serial)
         if (tag && taken.has(tagKey(tag))) {
           duplicates.push(tag)
+          continue
+        }
+        if (serial && takenSerials.has(serialKey(serial))) {
+          duplicates.push(serial)
           continue
         }
 
@@ -441,6 +472,7 @@ export function createMockAdapter(): InventoryAdapter {
         const holder = holderName ? ensureStaff(holderName) : null
 
         if (tag) taken.add(tagKey(tag))
+        if (serial) takenSerials.add(serialKey(serial))
         created.push(build({ ...input, locationId, assignedTo: holder?.name ?? input.assignedTo ?? null }))
       }
 

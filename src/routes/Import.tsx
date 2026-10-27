@@ -20,21 +20,24 @@ import { useInventoryVersion } from '../lib/useInventoryVersion'
 const PREVIEW_LIMIT = 30
 
 /**
- * The three counters above the preview are also its filters. “All” is the
+ * The counters above the preview are also its filters. “All” is the
  * unselected state, so a filter is cleared by clicking its own counter again.
+ * Ready / already on record / needs fix are disjoint: a row lives in exactly
+ * one pile, so re-uploading a master sheet reads as grey skips, not red errors.
+ * Warnings stay inline on the row and are not a pile.
  */
-type RowFilter = 'all' | 'ready' | 'problems' | 'warnings'
+type RowFilter = 'all' | 'ready' | 'skipped' | 'problems'
 
 const FILTER_LABELS: Record<Exclude<RowFilter, 'all'>, string> = {
   ready: 'ready to import',
-  problems: 'with problems',
-  warnings: 'with warnings',
+  skipped: 'already on record',
+  problems: 'needs fix',
 }
 
 const FILTER_TONES: Record<Exclude<RowFilter, 'all'>, { idle: string; active: string }> = {
   ready: { idle: 'text-ink', active: 'border-accent-2/50 bg-accent-2/10 text-accent-2' },
+  skipped: { idle: 'text-muted', active: 'border-line bg-panel-2 text-ink' },
   problems: { idle: 'text-bad', active: 'border-bad/50 bg-bad/10 text-bad' },
-  warnings: { idle: 'text-warn', active: 'border-warn/50 bg-warn/10 text-warn' },
 }
 
 function filterChipClass(tone: Exclude<RowFilter, 'all'>, selected: boolean): string {
@@ -187,18 +190,23 @@ export function ImportPage() {
 
   const commit = async () => {
     if (!plan || committing || plan.ready === 0) return
-    const ready = plan.rows.filter((row) => row.errors.length === 0 && row.input)
+    const ready = plan.rows.filter((row) => !row.skippedReason && row.errors.length === 0 && row.input)
     const inputs = ready.flatMap((row) => (row.input ? [row.input] : []))
     setCommitting(true)
     setCommitError(null)
     try {
       const outcome = await inventory.importDevices(inputs)
       // The adapter dedupes against what is on disk, so it can still refuse a
-      // row the preview accepted. Map those tags back to their source rows.
+      // row the preview accepted. Map those ids back to their source rows.
       const skippedRows = ready.flatMap((row) => {
         const tag = row.preview.assetTag.toUpperCase()
-        return outcome.duplicates.some((duplicate) => duplicate.toUpperCase() === tag)
-          ? [{ rowNumber: row.rowNumber, tag: row.preview.assetTag }]
+        const serial = row.preview.serial.toUpperCase()
+        const hit = outcome.duplicates.some((duplicate) => {
+          const key = duplicate.toUpperCase()
+          return (tag && key === tag) || (serial && key === serial)
+        })
+        return hit
+          ? [{ rowNumber: row.rowNumber, tag: row.preview.assetTag || row.preview.serial }]
           : []
       })
       setResult({ outcome, skippedRows })
@@ -256,7 +264,7 @@ export function ImportPage() {
               {duplicates.length} {duplicates.length === 1 ? 'row was' : 'rows were'} skipped
             </p>
             <p className="mt-1 text-xs text-muted">
-              Those asset tags already existed. Nothing was overwritten — edit the existing record instead.
+              Those tags or serials already existed. Nothing was overwritten — edit the existing record instead.
             </p>
             <ul className="mt-2 space-y-0.5 font-mono text-[11px] text-warn">
               {result.skippedRows.map((row) => (
@@ -381,14 +389,11 @@ export function ImportPage() {
 
   // --- mapping + dry run ------------------------------------------------------
 
-  // The counters double as filters. A row can be counted in both “with problems”
-  // and “with warnings”, so the three are filters over one row set, not
-  // disjoint piles. “Ready” is exactly the set the import button would write,
-  // so a warned-but-writable row can appear under both counters.
+  // The counters double as filters over three disjoint piles.
   const filterCounts: Record<Exclude<RowFilter, 'all'>, number> = {
     ready: plan?.ready ?? 0,
-    problems: plan?.rowsWithErrors ?? 0,
-    warnings: plan?.rowsWithWarnings ?? 0,
+    skipped: plan?.skipped ?? 0,
+    problems: plan?.rowsNeedingFix ?? plan?.rowsWithErrors ?? 0,
   }
   // If a mapping change empties the active counter, fall back to everything
   // rather than leaving the table filtered by a counter nobody can see.
@@ -397,9 +402,9 @@ export function ImportPage() {
   const filteredRows = plan
     ? plan.rows.filter((row) => {
         if (activeFilter === 'all') return true
-        if (activeFilter === 'ready') return row.errors.length === 0 && Boolean(row.input)
-        if (activeFilter === 'problems') return row.errors.length > 0
-        return row.warnings.length > 0
+        if (activeFilter === 'ready') return !row.skippedReason && row.errors.length === 0 && Boolean(row.input)
+        if (activeFilter === 'skipped') return Boolean(row.skippedReason)
+        return !row.skippedReason && row.errors.length > 0
       })
     : []
   // A filter always reveals every matching row — finding the rows behind
@@ -536,7 +541,22 @@ export function ImportPage() {
             >
               {plan.ready} ready to import
             </button>
-            {plan.rowsWithErrors > 0 && (
+            {plan.skipped > 0 && (
+              <button
+                type="button"
+                aria-pressed={activeFilter === 'skipped'}
+                onClick={() => setRowFilter(activeFilter === 'skipped' ? 'all' : 'skipped')}
+                title={
+                  activeFilter === 'skipped'
+                    ? 'Show every row again'
+                    : 'Show only the rows already on record'
+                }
+                className={filterChipClass('skipped', activeFilter === 'skipped')}
+              >
+                {plan.skipped} already on record
+              </button>
+            )}
+            {(plan.rowsNeedingFix ?? plan.rowsWithErrors) > 0 && (
               <button
                 type="button"
                 aria-pressed={activeFilter === 'problems'}
@@ -544,26 +564,11 @@ export function ImportPage() {
                 title={
                   activeFilter === 'problems'
                     ? 'Show every row again'
-                    : 'Show only the rows that cannot be imported'
+                    : 'Show only the rows that need a fix'
                 }
                 className={filterChipClass('problems', activeFilter === 'problems')}
               >
-                {plan.rowsWithErrors} with problems
-              </button>
-            )}
-            {plan.rowsWithWarnings > 0 && (
-              <button
-                type="button"
-                aria-pressed={activeFilter === 'warnings'}
-                onClick={() => setRowFilter(activeFilter === 'warnings' ? 'all' : 'warnings')}
-                title={
-                  activeFilter === 'warnings'
-                    ? 'Show every row again'
-                    : 'Show only the rows that carry a warning'
-                }
-                className={filterChipClass('warnings', activeFilter === 'warnings')}
-              >
-                {plan.rowsWithWarnings} with warnings
+                {plan.rowsNeedingFix ?? plan.rowsWithErrors} needs fix
               </button>
             )}
             <button
@@ -620,7 +625,7 @@ export function ImportPage() {
               </thead>
               <tbody>
                 {previewRows.map((row) => {
-                  const clean = row.errors.length === 0 && row.warnings.length === 0
+                  const clean = !row.skippedReason && row.errors.length === 0 && row.warnings.length === 0
                   return (
                     <tr key={row.rowNumber} className="border-b border-line/70 align-top last:border-b-0">
                       <td className="px-3 py-2 font-mono text-[11px] text-muted">{row.rowNumber}</td>
@@ -637,6 +642,9 @@ export function ImportPage() {
                       <td className="px-3 py-2 whitespace-nowrap text-muted">{row.preview.status}</td>
                       <td className="max-w-md px-3 py-2">
                         {clean && <span className="text-xs text-accent-2">ready</span>}
+                        {row.skippedReason && (
+                          <div className="text-[11px] leading-relaxed text-muted">{row.skippedReason}</div>
+                        )}
                         {row.errors.map((error) => (
                           <div key={error} className="text-[11px] leading-relaxed text-bad">
                             {error}
